@@ -1,0 +1,290 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+\usepackage[a4paper,top=1.75cm,bottom=2.0cm,left=1.75cm,right=1.75cm,columnsep=0.65cm]{geometry}
+\usepackage{times}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{7pt plus 2pt minus 2pt}
+\setlength{\intextsep}{7pt plus 2pt minus 2pt}
+\setlist{nosep,leftmargin=1.4em}
+\titleformat{\section}{\large\bfseries}{\thesection}{0.55em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.45em}{}
+\titlespacing*{\section}{0pt}{1.4ex plus .4ex}{0.7ex}
+\titlespacing*{\subsection}{0pt}{1.0ex plus .3ex}{0.4ex}
+
+\title{Reproducing LLMLingua: Evaluating Accuracy--Efficiency Trade-offs in Long-Context Prompt Compression}
+
+\author{
+CHEN IAT HONG \quad MC654102\\
+KONG KIN MENG \quad MC652817\\
+CHE CHON HONG \quad MC551841\\
+\textit{University of Macau}\\
+\textit{CISC7021 Applied Natural Language Processing -- Course Project Review Report}
+}
+
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-0.8cm}
+
+\begin{abstract}
+Large language models are increasingly required to process long prompts in question answering, document summarization, in-context learning, and retrieval-augmented generation. However, long prompts increase computational cost and inference latency, while irrelevant information and position bias may reduce model performance. This report reviews recent studies on long-context processing and prompt compression, including Selective Context, LLMLingua, and LongLLMLingua. It also examines the lost-in-the-middle phenomenon and long-context evaluation benchmarks. Based on this review, a preliminary project is proposed to reproduce and evaluate LLMLingua in a resource-constrained environment. The planned experiments will compare uncompressed prompts, simple truncation, and LLMLingua at different compression ratios. Their effects on question-answering accuracy, retained token count, compression overhead, and end-to-end inference latency will be investigated using Llama-3.2-3B-Instruct on Google Colab.
+\end{abstract}
+
+\section{Introduction}
+
+Large language models (LLMs) have achieved strong performance in question answering, summarization, reasoning, and conversational applications. Many modern LLM systems depend on long prompts. For example, retrieval-augmented generation may place several retrieved documents into the prompt, while document summarization and in-context learning may require thousands of input tokens.
+
+Long prompts nevertheless introduce several problems. First, they increase computation, memory usage, inference latency, and the monetary cost of API-based models. Second, retrieved documents frequently contain irrelevant or repeated information that can distract the model. Third, having a large context window does not guarantee that the model can use all positions effectively. \citet{liu-etal-2024-lost} found that model performance is often highest when relevant information is placed near the beginning or end of the context and lower when it is placed in the middle. This behavior is commonly known as the \textit{lost-in-the-middle} phenomenon.
+
+Prompt compression addresses these problems by shortening the text given to the target model while attempting to preserve task-relevant information. Unlike model compression, prompt compression does not necessarily change or retrain the target LLM. It can therefore be applied to existing open-source or closed-source models.
+
+This report reviews several developments in prompt compression, beginning with Selective Context and LLMLingua and continuing to LongLLMLingua. Related work on long-context position bias and evaluation benchmarks is also considered. Based on the reviewed literature, LLMLingua is selected as the preliminary reproduction target because it provides public code, has a clear evaluation methodology, and does not require training a new large language model.
+
+\section{Papers Reviewed}
+
+The reviewed papers were selected to cover the research problem, existing compression methods, long-context limitations, and relevant evaluation resources. Not every reviewed paper will be reproduced. Some papers provide background or baselines that help motivate the final project decision.
+
+\subsection{Prompt Compression Survey}
+
+\citet{li-etal-2025-prompt-survey} organize prompt-compression approaches and discuss their applications, evaluation settings, and limitations. The survey distinguishes methods that directly remove or rewrite visible prompt tokens from methods that represent information using learned continuous vectors. It provides an overview of the field and helps position the LLMLingua family among other compression approaches.
+
+\subsection{Selective Context}
+
+\citet{li-etal-2023-compressing} propose Selective Context, which identifies redundant lexical units using self-information and removes units that contribute relatively little information. The approach is model-agnostic and can be applied before sending the prompt to the target LLM. It was evaluated on long conversations, news articles, and scientific documents.
+
+Selective Context demonstrates that natural-language prompts contain substantial redundancy. However, because its importance estimation is not explicitly conditioned on a downstream question, it may remove details that are predictable in general but important for answering a specific query.
+
+\subsection{LLMLingua}
+
+LLMLingua \citep{jiang-etal-2023-llmlingua} introduces a coarse-to-fine prompt-compression framework. A smaller language model estimates the importance of prompt components and individual tokens. A budget controller first assigns different compression budgets to instructions, demonstrations, and questions. Iterative token-level compression then removes less informative tokens over multiple steps. Distribution alignment is used to reduce the difference between the compressor model and the target LLM.
+
+The paper evaluates LLMLingua on GSM8K, Big-Bench Hard, ShareGPT, and Arxiv-March23. These datasets represent mathematical reasoning, general reasoning, conversation, and summarization. This paper provides the methodological foundation for the proposed project.
+
+\subsection{Lost in the Middle}
+
+\citet{liu-etal-2024-lost} investigate whether language models use information consistently across different positions in a long context. Their experiments cover multi-document question answering and synthetic key-value retrieval. They find that performance often declines when relevant information is located in the middle of the context, even when the complete input remains within the model's advertised context window.
+
+This paper does not propose prompt compression. Nevertheless, it is directly relevant because it motivates the need to evaluate prompt compression under different context arrangements.
+
+\subsection{LongLLMLingua}
+
+LongLLMLingua \citep{jiang-etal-2024-longllmlingua} extends LLMLingua to long-context scenarios such as multi-document question answering. The method observes that useful information in a long prompt is normally sparse and dependent on the user's question.
+
+It introduces question-aware document ranking, contrastive perplexity, dynamic compression-budget allocation, document reordering, and subsequence recovery. These components aim to retain question-relevant evidence, reduce the effect of irrelevant context, and place important documents in positions that are easier for the target LLM to use.
+
+LongLLMLingua is reviewed as background and as a possible extension. The proposed project will focus on LLMLingua first, and will consider LongLLMLingua only if time permits.
+
+\subsection{Evaluation Resources}
+
+LongBench \citep{bai-etal-2024-longbench} is a bilingual, multi-task benchmark for long-context understanding. It contains 21 datasets across six task categories, including single-document QA, multi-document QA, summarization, few-shot learning, synthetic tasks, and code completion.
+
+Natural Questions \citep{kwiatkowski-etal-2019-natural} is a question-answering benchmark constructed from real Google search queries and Wikipedia pages. A multi-document version derived from this dataset is used in LongLLMLingua and is a possible evaluation source for the proposed project.
+
+\section{Existing Methodologies}
+
+\subsection{Truncation}
+
+The simplest way to reduce prompt length is to retain only the first or last part of the context. Head-only truncation may remove an answer near the end, whereas tail-only truncation may discard instructions or earlier evidence. A head-and-tail strategy retains tokens from both ends. Although truncation is inexpensive, it does not evaluate the semantic importance of the removed content.
+
+\subsection{Retrieval and Sentence Selection}
+
+Retrieval-based methods divide the context into documents, passages, or sentences and retain the units most similar to the question. These methods preserve readable text and can remove large amounts of irrelevant content. However, they normally treat a sentence or passage as an indivisible unit and cannot remove redundancy within a selected unit.
+
+Selective Context \citep{li-etal-2023-compressing} provides a more fine-grained alternative by pruning lexical units according to their information content. Its decisions, however, are not necessarily optimized for a particular question.
+
+\subsection{Perplexity-Based Compression}
+
+LLMLingua uses a small causal language model to estimate token importance through perplexity. Tokens that contribute relatively little new information receive lower priority. Its budget controller and iterative compression procedure allow the method to preserve important prompt components while applying token-level compression.
+
+This approach can achieve a high compression ratio, but it has two limitations. Repeated scoring introduces additional latency, and token-level removal may produce fragmented text or damage names, numbers, and multi-step reasoning chains.
+
+\subsection{Question-Aware Compression}
+
+LongLLMLingua makes the compression process dependent on the user's question. It first estimates the relevance of each document, retains the most useful documents, and allocates more tokens to highly ranked documents. It then calculates question-aware token importance and performs fine-grained compression.
+
+The method also reorders the retained documents to reduce position bias. This combines context selection, token compression, and prompt organization in a single pipeline.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}p{2.2cm}p{2.3cm}p{2.3cm}@{}}
+\toprule
+\textbf{Method} & \textbf{Unit} & \textbf{Question-Aware} \\
+\midrule
+Truncation & Token span & No \\
+Selective Context & Lexical unit & No \\
+LLMLingua & Token & Partially \\
+LongLLMLingua & Document + token & Yes \\
+\bottomrule
+\end{tabular}
+\caption{Comparison of prompt compression methods reviewed in this report.}
+\label{tab:methods}
+\end{table}
+
+\section{Experimental Results in Previous Work}
+
+The original LLMLingua paper reports that its method can compress prompts by up to approximately $20\times$ while retaining most of the original performance on some tasks \citep{jiang-etal-2023-llmlingua}. On GSM8K, LLMLingua obtained an Exact Match score of 77.33 under an approximately $20\times$ compression setting, representing a decrease of about 1.52 points from the corresponding uncompressed full-shot result.
+
+The effect was less stable on Big-Bench Hard. At approximately $7\times$ compression, the reported Exact Match score decreased by about 13.2 points. This indicates that prompts containing complicated reasoning steps may be more sensitive to aggressive token removal than ordinary contextual tasks.
+
+LongLLMLingua reports stronger results in long-context question answering \citep{jiang-etal-2024-longllmlingua}. On the NaturalQuestions multi-document benchmark, the method produced a performance improvement of up to 21.4\% while using approximately four times fewer input tokens when the answer document appeared in a difficult context position. The paper also reports a 94.0\% cost reduction on LooGLE.
+
+For prompts of approximately 10,000 tokens compressed at ratios between $2\times$ and $6\times$, LongLLMLingua achieved reported end-to-end speedups of approximately $1.4\times$--$2.6\times$. These measurements include both prompt compression and target-model inference rather than only the reduced generation time.
+
+These results suggest that prompt compression can reduce input length without an equivalent reduction in task performance. However, the results also show that the appropriate compression ratio depends on the task. In addition, experiments using proprietary target models and specific GPU hardware may not transfer directly to a local open-source environment.
+
+\section{Research Gap and Project Motivation}
+
+Existing studies demonstrate promising compression ratios, but several questions remain important for a practical course-scale implementation.
+
+First, many headline results were obtained using proprietary target models such as GPT-3.5-Turbo. It is uncertain whether the same accuracy--efficiency relationship will appear with a smaller open-source instruction-tuned model.
+
+Second, reporting the reduction in input tokens alone is insufficient. Prompt compression introduces its own computational overhead. A useful system should reduce total end-to-end latency rather than merely shorten the input received by the target model.
+
+Finally, complete reproduction of all datasets and models in LLMLingua or LongLLMLingua would exceed the available time and computing resources. A smaller but controlled reproduction is valuable because it can test whether the principal findings remain observable on accessible hardware.
+
+These considerations motivate a resource-constrained evaluation of LLMLingua that emphasizes reproducibility, transparent baselines, and end-to-end measurements.
+
+\section{Proposed Project and Preliminary Methodology}
+
+\subsection{Project Objective}
+
+The preliminary project will reproduce and evaluate LLMLingua on a manageable long-context question-answering setting. The objective is to investigate the trade-off among prompt length, answer quality, and inference efficiency.
+
+\subsection{Research Questions}
+
+The project will address the following research questions:
+
+\begin{itemize}
+    \item \textbf{RQ1:} How does the compression ratio affect question-answering accuracy?
+    \item \textbf{RQ2:} Does LLMLingua outperform simple truncation under the same input-token budget?
+    \item \textbf{RQ3:} Does compression reduce end-to-end latency after compression overhead is included?
+\end{itemize}
+
+\subsection{Dataset}
+
+The initial plan is to use approximately 300--500 multi-document question-answering examples derived from Natural Questions. Each example should contain a question, several candidate documents, and a reference answer. The exact sample indices will be fixed and saved so that every method is evaluated on the same examples.
+
+If preprocessing the multi-document Natural Questions data is not compatible with the released implementation, an English question-answering subset from LongBench will be used. A fixed subset and fixed sample indices will be retained for every method so that the comparison remains consistent. Specifically, the \texttt{multifieldqa\_en} subset of LongBench is the preferred fallback because it is already formatted for long-context question answering and requires no additional preprocessing.
+
+\subsection{Models}
+
+A released pretrained compressor from the official LLMLingua repository will be used. A default small compressor model such as \texttt{NousResearch/Llama-2-7b-hf} \citep{jiang-etal-2023-llmlingua} will be loaded in 4-bit or 8-bit precision to fit within the Colab environment.
+
+The target model will be \texttt{meta-llama/Llama-3.2-3B-Instruct}. This model offers a good balance between context-window support (128K tokens) and memory footprint, making it suitable for the free Colab T4 GPU (16GB VRAM). If GPU memory becomes a constraint during compression, the compressor model may be switched to \texttt{gpt2} or \texttt{openai-community/gpt2} \citep{li-etal-2023-compressing}.
+
+To avoid out-of-memory errors on the T4 GPU, prompt compression and target-model generation will be performed in separate stages. The compressor will be unloaded before the target model is loaded, so that the two models do not occupy GPU memory at the same time.
+
+Deterministic decoding, such as temperature zero, will be used where supported. All experiments will be conducted on Google Colab with T4 GPU. Software versions, prompts, compression settings, and runtime information will be recorded for reproducibility.
+
+\subsection{Compared Methods}
+
+The main experiment will compare:
+
+\begin{enumerate}
+    \item the complete uncompressed prompt;
+    \item head-and-tail truncation;
+    \item the original LLMLingua method.
+\end{enumerate}
+
+The planned target compression ratios are approximately $2\times$ and $4\times$. This reduced scope keeps the experiment feasible while still covering the main accuracy--efficiency trade-off.
+
+\subsection{Evaluation Metrics}
+
+Answer quality will be measured using Exact Match and token-level F1. Efficiency will be evaluated using:
+
+\begin{itemize}
+    \item original and retained prompt-token counts;
+    \item achieved compression ratio;
+    \item prompt-compression latency;
+    \item target-model generation latency;
+    \item total end-to-end latency.
+\end{itemize}
+
+Timing experiments will include warm-up runs followed by repeated measurements. The mean and standard deviation will be reported to reduce the effect of runtime variation.
+
+\subsection{Expected Outputs}
+
+The expected project outputs include a reproducible evaluation pipeline, accuracy--compression curves, latency comparisons, and qualitative examples of successful and unsuccessful compression.
+
+The project will be considered successful even if the original numerical results cannot be matched exactly, provided that the experimental differences are documented and the comparison among methods is conducted under the same controlled conditions.
+
+\section{Tentative Schedule}
+
+\begin{description}
+    \item[October 6--10:] Complete the literature review, review report, repository inspection, and initial experiment design.
+    \item[October 11--20:] Set up the Colab environment, install \texttt{llmlingua}, and prepare the selected dataset. Conduct small pilot tests to verify memory feasibility.
+    \item[October 19--27:] Implement the uncompressed and truncation baselines with Llama-3.2-3B-Instruct on Colab.
+    \item[October 28--November 5:] Run LLMLingua at compression ratios $2\times$ and $4\times$.
+    \item[November 6--10:] Conduct latency experiments and analyze failure cases.
+    \item[November 11--14:] Produce tables and figures and complete the final ACL-format report.
+    \item[November 15--17:] Prepare the slides, record the presentation, verify the submitted code and results, and complete submission.
+\end{description}
+
+\section{Conclusion}
+
+This review examined prompt compression as a practical approach to improving long-context LLM inference. Selective Context demonstrates that substantial redundancy exists in natural-language prompts. LLMLingua introduces coarse-to-fine perplexity-based token compression, while LongLLMLingua extends the approach with question-aware document ranking, adaptive compression, and document reordering.
+
+The reviewed literature suggests that prompt compression can reduce input length and inference cost while preserving task performance. However, aggressive compression may remove essential reasoning information, and compression overhead must be included in efficiency measurements.
+
+Based on these findings, the proposed project will conduct a resource-constrained reproduction of LLMLingua using an open-source target model. The project will focus on answer quality, token reduction, and end-to-end latency. This scope provides a feasible NLP/LLM implementation while retaining sufficient experimental and analytical value for the course project.
+
+\section{Use of Generative AI}
+
+Generative AI tools were used to assist with literature organization, drafting, and formatting. Numerical claims were checked against the cited papers. During implementation, all code changes, experimental configurations, and reported results will be reviewed and verified by the project members before submission.
+
+\begin{thebibliography}{9}
+
+\bibitem[Bai et al.(2024)]{bai-etal-2024-longbench}
+Yushi Bai, Xin Lv, Jiajie Zhang, Hongchang Lyu, Jiankai Tang, Zhidian Huang, Zhengxiao Du, Xiao Liu, Aohan Zeng, Lei Hou, Yuxiao Dong, Jie Tang, and Juanzi Li. 2024.
+\newblock LongBench: A bilingual, multitask benchmark for long context understanding.
+\newblock In \emph{Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)}, pages 3119--3137.
+
+\bibitem[Jiang et al.(2023)]{jiang-etal-2023-llmlingua}
+Huiqiang Jiang, Qianhui Wu, Chin-Yew Lin, Yuqing Yang, and Lili Qiu. 2023.
+\newblock LLMLingua: Compressing prompts for accelerated inference of large language models.
+\newblock In \emph{Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing}, pages 13358--13376.
+
+\bibitem[Jiang et al.(2024)]{jiang-etal-2024-longllmlingua}
+Huiqiang Jiang, Qianhui Wu, Xufang Luo, Dongsheng Li, Chin-Yew Lin, Yuqing Yang, and Lili Qiu. 2024.
+\newblock LongLLMLingua: Accelerating and enhancing LLMs in long context scenarios via prompt compression.
+\newblock In \emph{Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)}, pages 1658--1677.
+
+\bibitem[Kwiatkowski et al.(2019)]{kwiatkowski-etal-2019-natural}
+Tom Kwiatkowski, Jennimaria Palomaki, Olivia Redfield, Michael Collins, Ankur Parikh, Chris Alberti, Danielle Epstein, Illia Polosukhin, Jacob Devlin, Kenton Lee, Kristina Toutanova, Llion Jones, Matthew Kelcey, Ming-Wei Chang, Andrew M. Dai, Jakob Uszkoreit, Quoc Le, and Slav Petrov. 2019.
+\newblock Natural Questions: A benchmark for question answering research.
+\newblock \emph{Transactions of the Association for Computational Linguistics}, 7:453--466.
+
+\bibitem[Li et al.(2023)]{li-etal-2023-compressing}
+Yucheng Li, Bo Dong, Frank Guerin, and Chenghua Lin. 2023.
+\newblock Compressing context to enhance inference efficiency of large language models.
+\newblock In \emph{Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing}, pages 6342--6353.
+
+\bibitem[Li et al.(2025)]{li-etal-2025-prompt-survey}
+Zongqian Li, Yinhong Liu, Yixuan Su, and Nigel Collier. 2025.
+\newblock Prompt compression for large language models: A survey.
+\newblock In \emph{Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 1: Long Papers)}, pages 5807--5823.
+
+\bibitem[Liu et al.(2024)]{liu-etal-2024-lost}
+Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, and Percy Liang. 2024.
+\newblock Lost in the middle: How language models use long contexts.
+\newblock \emph{Transactions of the Association for Computational Linguistics}, 12:157--173.
+
+\end{thebibliography}
+
+\end{document}
