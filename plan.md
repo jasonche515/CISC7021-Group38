@@ -6,7 +6,7 @@
 
 Member 1 負責最完整的 baseline：不做任何壓縮，直接將全部檢索文件、問題、指令組成 prompt，送入 Llama-3.2-3B-Instruct 生成答案。工作包括：
 
-- 下載並預處理 Natural Questions 或 LongBench `multifieldqa_en`，固定 300–500 條樣本索引，存成共用 JSON，供三人使用。
+- 下載並預處理 LongBench `multifieldqa_en`，固定 **150** 條樣本索引（官方 test split 全部樣本），存成共用 JSON `shared/samples.json`，供三人使用。
 - 實作 full-context prompt template，確保三人用同一格式。
 - 在 Colab T4 上跑 inference，使用 temperature zero、固定 max new tokens。
 - 計算 Exact Match、token-level F1。
@@ -42,7 +42,7 @@ Member 3 的壓縮步驟獨立於 Member 1、2，三人可同時在 Colab 或本
 
 ## 共用接口與同步
 
-- **共用檔案**：`samples.json`（固定索引）、`prompt_template.py`（統一 prompt 格式）、`metrics.py`（EM/F1 計算）。
+- **共用檔案**：`shared/samples.json`（固定索引）、`shared/prompt_template.py`（統一 prompt 格式）、`shared/metrics.py`（EM/F1 計算）、`shared/config.py`（模型與 token 上限）。
 - **各自輸出**：`results_member1.json`、`results_member2.json`、`results_member3.json`，格式一致。
 - **同步方式**：每週一次短會，對齊樣本索引、prompt 格式、tokenizer 版本、max new tokens。其餘時間各自獨立開發。
 - **合併階段**：三人輸出合併成同一張表，比較三種方法在 accuracy、retained tokens、compression ratio、compression latency、generation latency、total latency 的差異，回答 RQ1–RQ3。

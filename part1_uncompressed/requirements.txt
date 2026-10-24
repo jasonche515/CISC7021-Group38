@@ -1,0 +1,7 @@
+# CPU-only install (Windows / Linux, no GPU):
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# CUDA install: follow https://pytorch.org/get-started/locally/
+torch>=2.2
+transformers>=4.45
+requests>=2.25
+tqdm>=4.62

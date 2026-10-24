@@ -218,3 +218,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Experiment data / checkpoints (CISC7021)
+shared/data/
+part*/results_*.jsonl
+part*/_smoke*
+part*/run.log
+part*/_*.json
+part*/_*.log
