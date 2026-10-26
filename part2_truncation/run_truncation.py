@@ -9,6 +9,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -17,6 +18,7 @@ if str(ROOT) not in sys.path:
 from shared.config import MAX_NEW_TOKENS, MODEL_ID, SAMPLES_PATH  # noqa: E402
 from shared.metrics import mean_metrics, score  # noqa: E402
 from shared.prompt_template import render_input_ids  # noqa: E402
+torch.backends.cuda.enable_math_sdp(False)
 from part1_uncompressed.run_baseline import (  # noqa: E402
     HFBackend,
     load_done_ids,
@@ -70,7 +72,8 @@ def run(args) -> int:
     jsonl.parent.mkdir(parents=True, exist_ok=True)
     started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     processed = 0
-
+    oom_ids = []
+    
     with open(jsonl, "a", encoding="utf-8") as sink:
         for index, sample in enumerate(samples, start=1):
             if sample["id"] in done:
@@ -86,7 +89,13 @@ def run(args) -> int:
             compression_latency = time.perf_counter() - t0
 
             input_ids = render_input_ids(tok, docs_c, question)
-            answer, generation_latency = backend.generate(input_ids, args.max_new_tokens)
+            try:
+                answer, generation_latency = backend.generate(input_ids, args.max_new_tokens)
+            except torch.OutOfMemoryError:
+                backend.clear_cache()
+                oom_ids.append(sample["id"])
+                print(f"[oom] skipped id={sample['id']} prompt_tokens={len(input_ids)}", flush=True)
+                continue
             total_latency = time.perf_counter() - t0
 
             scores = score(answer, sample["answers"])
