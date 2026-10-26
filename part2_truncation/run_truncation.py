@@ -18,7 +18,6 @@ if str(ROOT) not in sys.path:
 from shared.config import MAX_NEW_TOKENS, MODEL_ID, SAMPLES_PATH  # noqa: E402
 from shared.metrics import mean_metrics, score  # noqa: E402
 from shared.prompt_template import render_input_ids  # noqa: E402
-torch.backends.cuda.enable_math_sdp(False)
 from part1_uncompressed.run_baseline import (  # noqa: E402
     HFBackend,
     load_done_ids,
@@ -42,6 +41,38 @@ def head_tail_truncate(tokenizer, docs, ratio, head_frac):
     text = tokenizer.decode(kept, skip_special_tokens=True)
     return text, n_orig, len(kept)
 
+def generate_chunked(backend, input_ids, max_new_tokens, chunk_size):
+    from transformers import DynamicCache
+
+    torch_ = backend.torch
+    model, tok = backend.model, backend.tokenizer
+    ids = torch_.tensor([input_ids], device=backend.device)
+    total = ids.shape[1]
+
+    start = time.perf_counter()
+    with torch_.inference_mode():
+        cache = DynamicCache()
+        for i in range((total - 1) // chunk_size):
+            s, e = i * chunk_size, (i + 1) * chunk_size
+            out = model(
+                input_ids=ids[:, s:e],
+                past_key_values=cache,
+                use_cache=True,
+                cache_position=torch_.arange(s, e, device=backend.device),
+                logits_to_keep=1,
+            )
+            cache = out.past_key_values
+        output = model.generate(
+            input_ids=ids,
+            attention_mask=torch_.ones_like(ids),
+            past_key_values=cache,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=tok.pad_token_id or tok.eos_token_id,
+        )
+    latency = time.perf_counter() - start
+    text = tok.decode(output[0][total:], skip_special_tokens=True)
+    return text.strip(), latency
 
 def run(args) -> int:
     tag = f"{args.ratio:g}x" + ("" if args.head_frac == 0.5 else f"_h{args.head_frac:g}")
@@ -73,7 +104,7 @@ def run(args) -> int:
     started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     processed = 0
     oom_ids = []
-    
+
     with open(jsonl, "a", encoding="utf-8") as sink:
         for index, sample in enumerate(samples, start=1):
             if sample["id"] in done:
@@ -90,7 +121,14 @@ def run(args) -> int:
 
             input_ids = render_input_ids(tok, docs_c, question)
             try:
-                answer, generation_latency = backend.generate(input_ids, args.max_new_tokens)
+                if len(input_ids) > args.chunk_threshold:
+                    answer, generation_latency = generate_chunked(
+                        backend, input_ids, args.max_new_tokens, args.chunk_size
+                    )
+                else:
+                    answer, generation_latency = backend.generate(
+                        input_ids, args.max_new_tokens
+                    )
             except torch.OutOfMemoryError:
                 backend.clear_cache()
                 oom_ids.append(sample["id"])
@@ -183,6 +221,8 @@ def parse_args(argv=None):
     p.add_argument("--max-new-tokens", type=int, default=MAX_NEW_TOKENS)
     p.add_argument("--no-resume", dest="resume", action="store_false")
     p.add_argument("--save-context", action="store_true")
+    p.add_argument("--chunk-size", type=int, default=2048)
+    p.add_argument("--chunk-threshold", type=int, default=4096)
     p.set_defaults(resume=True)
     return p.parse_args(argv)
 
