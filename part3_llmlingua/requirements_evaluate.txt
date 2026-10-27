@@ -1,0 +1,7 @@
+# Evaluation-stage environment. Llama 3.2 support was added after the
+# Transformers version used for compression. Install this only after the
+# compression command has exited and written compressed_member3.jsonl.
+transformers==4.46.3
+torch>=2.2
+accelerate>=0.27
+sentencepiece>=0.1.99

@@ -1,0 +1,10 @@
+# Compression-stage environment. LLMLingua 0.2.2 expects the legacy
+# past-key-value cache used by Transformers 4.38.2. Newer releases changed the
+# cache API and can fail on long inputs. The evaluation stage upgrades only
+# Transformers using requirements_evaluate.txt after this process exits.
+llmlingua==0.2.2
+transformers==4.38.2
+torch>=2.2
+accelerate>=0.27
+tiktoken>=0.5
+sentencepiece>=0.1.99

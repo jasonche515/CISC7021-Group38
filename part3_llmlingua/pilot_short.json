@@ -1,0 +1,47 @@
+{
+  "stage": "compression",
+  "method": "llmlingua",
+  "dataset": "multifieldqa_en",
+  "compressor_model": "microsoft/phi-2",
+  "target_model": "NousResearch/Llama-2-7b-hf",
+  "device": "cuda",
+  "target_compression_ratios": [
+    2
+  ],
+  "iterative_size": 200,
+  "started_at": "2026-10-26T14:24:48+00:00",
+  "finished_at": "2026-10-26T14:24:51+00:00",
+  "num_results": 1,
+  "summary": {
+    "2x": {
+      "num_samples": 1,
+      "mean_original_prompt_tokens": 1439.0,
+      "mean_prompt_tokens": 652.0,
+      "mean_achieved_compression_ratio": 2.207055214723926,
+      "mean_compression_latency": 2.5278260900001897
+    }
+  },
+  "results": [
+    {
+      "id": "22034e095a602824678c4028e6f605919ce520270dc06089",
+      "question": "What is the scaling form for the alternative order parameter O?",
+      "answers": [
+        "O(t, L_{\\parallel}; S_\\Delta) = L_{\\parallel}^{-\\beta/[\\nu(1+\\Delta)]} \\tilde f_O(t/L_{\\parallel}^{z/(1+\\Delta)}; S_\\Delta)."
+      ],
+      "compressed_docs": "\\section{Dynamical of $O$ in Lice G\n\nThe of the anotropic parameter$$ [see.~\\:def-} in the] following a quench to the critical point is well by\ntheussian theory for all the threeice models studied, $e.,$ driven gas with either constant (ID or (R) infinite drive and equilibrium gas (). In, in the short-time,msim t^{}$.:}] and the Binderant $g$ the lowestverse mode [:] is zero in. The alternative $O$ however, distinguishes the drivenIDLG, R (LG)ice.\n\nIn to understand  this we first theological scaling form forO$,  an to. \\:alingass} in  the Letter,{\nO (t, L_{\\allel} ; S_\\Delta) =}^{-\\beta/[\\nu(1\\Delta} \\ilde f_Ot/}^{z)}Delta).\\quad:Oaling\nWe already that the LG, is not the predictionO \\sim^{/}  parallel}^{-1/}$ theussian. , following.{AS}, it be that, at the only the system size\\ isOsim L$ is very well by.,  the generic$ be be\n{Osim t{\\2}, \\O aological exponent. This, withOscalingass}, implies $\\O(alpha$aring the-size behaviour in\\:O} withOaling} one actuallyers,{\\1+ \\Delta - \\beta \\, (4 \\)}.\nThis equation, the hypersaling relationDelta -nu= - \\$ in two, the predictionalpha/$ theussian theorysee.O] obtained only0 theLG (ex R) the.\n,  \\:} predicts/$ upon the the criticalonents theing  un class (). is the numerical results the,:)[\\2\n={./_b\n the theinder $$ the $12$ mode $$ $\\ = the (lowestLG R (two) on a $.{:b\n \\bThe new $/ the$ be the- of higher the, the mode behaves models we,   same $m$, the-  \n we theinder of modes which defined   to(), using modes.,\\ \\igma,2pi\\bot\nb} the same threeice gases the\\ = $. the curve (est,) from behaviour $ (in $ $ \\.$ theaded)LG R (two\n the different which a the.\n a not for,oscopic the in:L-:_ not expected to hold, while the anisotropy at the microscopic level could be the mechanism leading to the Gaussianity of higher modes in the driven models.",
+      "target_compression_ratio": 2,
+      "target_rate": 0.5,
+      "original_prompt_tokens": 1439,
+      "prompt_tokens": 652,
+      "retained_fraction": 0.453092425295344,
+      "compression_ratio": 2.207055214723926,
+      "compression_latency": 2.5278260900001897,
+      "compressor_origin_tokens": 1286,
+      "compressor_compressed_tokens": 543,
+      "compressor_reported_ratio": "2.4x",
+      "compressor_model": "microsoft/phi-2",
+      "target_model": "NousResearch/Llama-2-7b-hf",
+      "method": "llmlingua"
+    }
+  ]
+}
