@@ -4,6 +4,23 @@ This folder reproduces the original **LLMLingua** method at nominal 2x and 4x
 compression on the shared LongBench `multifieldqa_en` samples. The target LLM,
 prompt template, sample order and EM/F1 implementation are identical to Part 1.
 
+## 中文進度摘要
+
+這個資料夾是 Member 3 負責的 LLMLingua 部分。目前已在 Google Colab
+Tesla T4 上完成可運行的兩階段 pipeline：先用 LLMLingua 壓縮 prompt，釋放
+compressor 後，再載入 `Llama-3.2-3B-Instruct` 生成答案並計算 EM、token-level
+F1 和延遲。這樣可以避免 compressor 與 target model 同時佔用 GPU 而造成 OOM。
+
+目前完成的五樣本 pilot 使用固定索引 `[17, 29, 126, 85, 112]`，每個樣本均測試
+2x 和 4x 壓縮。2x 的平均 F1 為 0.352、平均總延遲為 3.549 秒；4x 的平均 F1
+為 0.086、平均總延遲為 2.384 秒。初步結果顯示，更高壓縮率可以減少 token
+數量和推理時間，但答案品質會明顯下降。
+
+現階段結果只用來證明流程可行，不能當作最終結論。部分 LongBench prompt
+超過 Phi-2 compressor 的 context limit，因此下一步需要先確定長文本處理方式，
+再擴大樣本數，並與 uncompressed 和 head-and-tail truncation 使用相同樣本及設定
+進行正式比較。
+
 The pipeline has two independent stages so the compressor and target LLM are
 never loaded at the same time:
 
