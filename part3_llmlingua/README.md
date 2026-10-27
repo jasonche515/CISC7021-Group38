@@ -16,10 +16,10 @@ F1 和延遲。這樣可以避免 compressor 與 target model 同時佔用 GPU �
 為 0.086、平均總延遲為 2.384 秒。初步結果顯示，更高壓縮率可以減少 token
 數量和推理時間，但答案品質會明顯下降。
 
-現階段結果只用來證明流程可行，不能當作最終結論。部分 LongBench prompt
-超過 Phi-2 compressor 的 context limit，因此下一步需要先確定長文本處理方式，
-再擴大樣本數，並與 uncompressed 和 head-and-tail truncation 使用相同樣本及設定
-進行正式比較。
+現階段結果只用來證明流程可行，不能當作最終結論。完整實驗會把長文本切成
+固定的1,400-token區塊，各區塊獨立壓縮後按原順序合併，避免超過Phi-2
+compressor的context limit。接下來需要跑完150題，並與uncompressed和
+head-and-tail truncation使用相同樣本及設定進行正式比較。
 
 The pipeline has two independent stages so the compressor and target LLM are
 never loaded at the same time:
@@ -57,14 +57,16 @@ compatible tokenizer for counting prompt tokens. It does not load Llama 2 for
 answer generation. The evaluation stage still uses
 `unsloth/Llama-3.2-3B-Instruct` as the target LLM.
 
-Do not immediately remove the sample selection and start a complete run.
 `microsoft/phi-2`, the LLMLingua compressor used here, has a much shorter
-working context than several raw LongBench samples. The one-sample pilot is
-valid; long samples require a documented chunking policy before a full run.
-Once that policy is implemented, a fresh run will use commands of this form:
+working context than most raw LongBench samples. For the full run, each
+document is therefore split into ordered, non-overlapping chunks of at most
+1,400 measurement-tokenizer tokens. Every chunk is compressed at the same
+target rate, then the outputs are concatenated in their original order. This
+is a resource-constrained, chunked reproduction of LLMLingua and is recorded
+explicitly in every result row. A fresh full run uses:
 
 ```bash
-python part3_llmlingua/run_llmlingua.py compress --device cuda --no-resume
+python part3_llmlingua/run_llmlingua.py compress --device cuda --compressor-chunk-tokens 1400 --no-resume
 python part3_llmlingua/run_llmlingua.py evaluate --device cuda --dtype float16 --no-resume
 ```
 

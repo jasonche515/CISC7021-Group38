@@ -49,6 +49,7 @@ DEFAULT_RESULTS_JSONL = PART_DIR / "results_member3.jsonl"
 DEFAULT_RESULTS_JSON = PART_DIR / "results_member3.json"
 DEFAULT_COMPRESSOR = "microsoft/phi-2"
 DEFAULT_MEASUREMENT_TOKENIZER = "NousResearch/Llama-2-7b-hf"
+DEFAULT_COMPRESSOR_CHUNK_TOKENS = 1400
 
 
 # --------------------------------------------------------------------------- #
@@ -130,6 +131,28 @@ def numeric_mean(rows: Iterable[dict[str, Any]], key: str) -> float | None:
     return sum(values) / len(values) if values else None
 
 
+def split_text_by_tokens(tokenizer, text: str, max_tokens: int) -> list[str]:
+    """Split text into ordered, non-overlapping chunks for the compressor.
+
+    Phi-2 has a much shorter context window than the LongBench examples.  A
+    conservative 1,400-token limit leaves room for LLMLingua's internal model
+    input while keeping the full document: every chunk is compressed and the
+    compressed chunks are concatenated in their original order.
+    """
+    if max_tokens <= 0:
+        raise ValueError("compressor chunk size must be greater than zero")
+    token_ids = tokenizer(
+        text, add_special_tokens=False, verbose=False
+    )["input_ids"]
+    if not token_ids:
+        return [""]
+    chunks = []
+    for start in range(0, len(token_ids), max_tokens):
+        chunk_ids = token_ids[start : start + max_tokens]
+        chunks.append(tokenizer.decode(chunk_ids, skip_special_tokens=True))
+    return chunks
+
+
 def summarize_compression(rows: list[dict[str, Any]]) -> dict[str, Any]:
     grouped: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
@@ -192,6 +215,8 @@ def run_compress(args: argparse.Namespace) -> int:
     invalid_ratios = [ratio for ratio in args.ratios if ratio <= 1]
     if invalid_ratios:
         raise ValueError(f"compression ratios must be greater than 1: {invalid_ratios}")
+    if args.compressor_chunk_tokens <= 0:
+        raise ValueError("--compressor-chunk-tokens must be greater than zero")
 
     if not args.resume:
         args.jsonl.unlink(missing_ok=True)
@@ -233,6 +258,11 @@ def run_compress(args: argparse.Namespace) -> int:
     with open(args.jsonl, "a", encoding="utf-8") as sink:
         job_number = 0
         for sample in samples:
+            document_chunks = split_text_by_tokens(
+                measurement_tokenizer,
+                sample["docs"],
+                args.compressor_chunk_tokens,
+            )
             original_prompt_tokens = len(
                 render_input_ids(
                     measurement_tokenizer, sample["docs"], sample["question"]
@@ -252,22 +282,35 @@ def run_compress(args: argparse.Namespace) -> int:
                 rate = 1.0 / float(target_ratio)
                 synchronize(torch, device)
                 started = time.perf_counter()
-                compressed = compressor.compress_prompt(
-                    sample["docs"],
-                    instruction="",
-                    question="",
-                    rate=rate,
-                    iterative_size=args.iterative_size,
-                    use_context_level_filter=False,
-                    use_sentence_level_filter=False,
-                    use_token_level_filter=True,
-                    rank_method="llmlingua",
-                    concate_question=False,
-                )
+                compressed_parts: list[str] = []
+                compressor_origin_tokens = 0
+                compressor_compressed_tokens = 0
+                for document_chunk in document_chunks:
+                    compressed = compressor.compress_prompt(
+                        document_chunk,
+                        instruction="",
+                        question="",
+                        rate=rate,
+                        iterative_size=args.iterative_size,
+                        use_context_level_filter=False,
+                        use_sentence_level_filter=False,
+                        use_token_level_filter=True,
+                        rank_method="llmlingua",
+                        concate_question=False,
+                    )
+                    compressed_part = compressed["compressed_prompt"].strip()
+                    if compressed_part:
+                        compressed_parts.append(compressed_part)
+                    compressor_origin_tokens += int(
+                        compressed.get("origin_tokens") or 0
+                    )
+                    compressor_compressed_tokens += int(
+                        compressed.get("compressed_tokens") or 0
+                    )
                 synchronize(torch, device)
                 compression_latency = time.perf_counter() - started
 
-                compressed_docs = compressed["compressed_prompt"].strip()
+                compressed_docs = "\n\n".join(compressed_parts)
                 if not compressed_docs:
                     raise RuntimeError(
                         f"compressor returned empty text for id={sample['id']} "
@@ -297,11 +340,15 @@ def run_compress(args: argparse.Namespace) -> int:
                     ),
                     "compression_ratio": achieved_ratio,
                     "compression_latency": compression_latency,
-                    "compressor_origin_tokens": compressed.get("origin_tokens"),
-                    "compressor_compressed_tokens": compressed.get(
-                        "compressed_tokens"
+                    "compressor_origin_tokens": compressor_origin_tokens,
+                    "compressor_compressed_tokens": compressor_compressed_tokens,
+                    "compressor_reported_ratio": (
+                        compressor_origin_tokens / compressor_compressed_tokens
+                        if compressor_compressed_tokens
+                        else None
                     ),
-                    "compressor_reported_ratio": compressed.get("ratio"),
+                    "num_compression_chunks": len(document_chunks),
+                    "compressor_chunk_tokens": args.compressor_chunk_tokens,
                     "compressor_model": args.compressor_model,
                     "tokenizer_model": args.tokenizer_model,
                     "target_model": MIRROR_MODEL_ID,
@@ -329,6 +376,7 @@ def run_compress(args: argparse.Namespace) -> int:
         "device": device,
         "target_compression_ratios": args.ratios,
         "iterative_size": args.iterative_size,
+        "compressor_chunk_tokens": args.compressor_chunk_tokens,
         "started_at": started_at,
         "finished_at": utc_now(),
         "num_results": len(rows),
@@ -463,6 +511,10 @@ def run_evaluate(args: argparse.Namespace) -> int:
                     else 0.0
                 ),
                 "compression_latency": source["compression_latency"],
+                "num_compression_chunks": source.get("num_compression_chunks", 1),
+                "compressor_chunk_tokens": source.get(
+                    "compressor_chunk_tokens"
+                ),
                 "answer": answer,
                 "answers": source["answers"],
                 "em": scores["em"],
@@ -559,6 +611,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--device", choices=["auto", "cpu", "cuda", "mps"], default="auto"
     )
     compress.add_argument("--iterative-size", type=int, default=200)
+    compress.add_argument(
+        "--compressor-chunk-tokens",
+        type=int,
+        default=DEFAULT_COMPRESSOR_CHUNK_TOKENS,
+        help=(
+            "maximum measurement-token length of each chunk sent to the "
+            "short-context compressor (default: 1400)"
+        ),
+    )
     compress.add_argument("--jsonl", type=Path, default=DEFAULT_COMPRESSED_JSONL)
     compress.add_argument("--output", type=Path, default=DEFAULT_COMPRESSED_JSON)
     compress.add_argument("--no-resume", dest="resume", action="store_false")
