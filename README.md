@@ -14,32 +14,32 @@ under an identical sample index, prompt template and metric implementation
 | --- | --- | --- | --- |
 | [part1_uncompressed](./part1_uncompressed) | No compression (full context baseline) | Member 1 | Done — 150/150, EM 0.0933 / F1 0.4296 |
 | [part2_truncation](./part2_truncation) | Head-and-tail truncation (2x / 4x) | Member 2 | Done — 150/150 at both ratios, EM 0.0733 / 0.0667, F1 0.4065 / 0.3620 |
-| [part3_llmlingua](./part3_llmlingua) | LLMLingua (2x / 4x) | Member 3 | Pipeline done — verified 5-sample pilot at both ratios; full 150-sample run pending |
+| [part3_llmlingua](./part3_llmlingua) | LLMLingua (2x / 4x) | Member 3 | Done — 150/150 at both ratios, EM 0.0067 / 0.0133, F1 0.2626 / 0.2207 |
 
 > 本專案比較三種 prompt 壓縮方法 —— 在 LongBench
 > `multifieldqa_en` 上以 `Llama-3.2-3B-Instruct` 做長文本問答。三人使用完全相同
 > 的樣本索引、prompt 模板與評分實作，確保三份結果可互相對照（分工見
 > [plan.md](./plan.md)）。Part 1 已完成 150/150 筆（EM 0.0933 / F1 0.4296）；
 > Part 2 的 2x 與 4x 亦各完成 150/150 筆（EM 0.0733 / 0.0667，F1 0.4065 /
-> 0.3620）；Part 3 已完成兩階段 LLMLingua pipeline 並在 Colab T4 上通過 5 筆
-> pilot 驗證，但 150 筆完整實驗（`results_member3.json`）尚未產生。
+> 0.3620）；Part 3 的 2x 與 4x 各完成 150/150 筆（EM 0.0067 / 0.0133，F1
+> 0.2626 / 0.2207），共產生 300 筆正式 LLMLingua 評估結果。
 
 ## Key results
 
 All numbers below are read from the committed result files, not re-typed by hand.
 
-| Method | n | EM | F1 | Mean prompt tokens | Doc ratio | Compression (s) | Generation (s) | Total (s) |
+| Method | n | EM | F1 | Mean prompt tokens | Whole-prompt ratio | Compression (s) | Generation (s) | Total (s) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Uncompressed (Part 1) | 150 | 0.0933 | 0.4296 | 6 966.8 | 1.000 | 0.000 | 4.634 | 4.647 |
-| Head-tail 2x (Part 2) | 150 | 0.0733 | 0.4065 | 3 523.1 | 2.000 | 0.019 | 5.793 | 5.822 |
-| Head-tail 4x (Part 2) | 150 | 0.0667 | 0.3620 | 1 801.2 | 4.000 | 0.018 | 3.523 | 3.546 |
-| LLMLingua 2x (Part 3, pilot) | 5 | 0.000 | 0.3523 | 727.8 | 2.339 | 1.699 | 1.835 | 3.549 |
-| LLMLingua 4x (Part 3, pilot) | 5 | 0.000 | 0.0860 | 449.8 | 3.823 | 1.325 | 1.056 | 2.384 |
+| Head-tail 2x (Part 2) | 150 | 0.0733 | 0.4065 | 3 523.1 | 1.969 | 0.019 | 5.793 | 5.822 |
+| Head-tail 4x (Part 2) | 150 | 0.0667 | 0.3620 | 1 801.2 | 3.820 | 0.018 | 3.523 | 3.546 |
+| LLMLingua 2x (Part 3) | 150 | 0.0067 | 0.2626 | 3 308.1 | 2.094 | 10.816 | 3.017 | 13.839 |
+| LLMLingua 4x (Part 3) | 150 | 0.0133 | 0.2207 | 1 961.6 | 3.508 | 9.846 | 2.130 | 11.980 |
 
 Sources: [Part 1](./part1_uncompressed/results_member1.json) ·
 [Part 2 2x](./part2_truncation/results_member2_2x.json) ·
 [Part 2 4x](./part2_truncation/results_member2_4x.json) ·
-[Part 3 pilot](./part3_llmlingua/pilot5_results.json) ·
+[Part 3](./part3_llmlingua/results_member3.json) ·
 [combined table](./part2_truncation/results_table.md).
 
 - Head-and-tail truncation loses 5.4% relative F1 at 2x and 15.7% at 4x while
@@ -48,21 +48,22 @@ Sources: [Part 1](./part1_uncompressed/results_member1.json) ·
 - Part 2 reports two ratios: the **document** ratio (achieved 2.000 / 4.000) and
   the **whole-prompt** ratio (1.969 / 3.820), because the instruction and the
   question are always kept.
-- The LLMLingua rows are a five-sample pilot on the five shortest shared samples
-  (indices 17, 29, 126, 85, 112). They are **not** comparable with the
-  150-sample rows, and EM is not meaningful at n = 5.
-- Latencies come from different hardware — Part 1 on a local RTX 3060, Parts 2
-  and 3 on a Colab T4, all `float16` — so compare token counts and quality
-  across parts, not absolute seconds.
+- LLMLingua 4x reduced mean generation latency by 29.4% relative to LLMLingua
+  2x, while token F1 decreased by 16.0%. Its very low EM reflects strict exact
+  matching of generated answers, so F1 is the more informative quality metric.
+- Latencies come from different hardware — Part 1 on a local RTX 3060, Part 2
+  on a Colab T4, and Part 3 on Apple M5 Pro MPS, all `float16` — so compare
+  token counts and quality across parts, not absolute seconds.
 
 > 上表數字直接取自各結果檔（非人手抄錄）。頭尾截斷在 2x 只損失 5.4% 相對 F1、
 > 4x 損失 15.7%，但分別減少 49% 與 74% 的 prompt token；兩個設定的 150 筆全部
 > 有截斷，符合方法設計，因此 Part 1 確實是完全不壓縮的基準。Part 2 同時記錄
 > 「文章壓縮比」（實得 2.000 / 4.000）與「整個 prompt 壓縮比」（1.969 /
-> 3.820），因為指令與問題一律保留。LLMLingua 兩列只是 5 筆 pilot（共用索引中
-> 最短的 5 題：17、29、126、85、112），不可與 150 筆的結果直接比較，n = 5 時
-> EM 也沒有統計意義。延遲來自不同硬體（Part 1 本機 RTX 3060、Part 2/3 Colab
-> T4，皆 `float16`），跨部分請比較 token 數與品質，不要比較絕對秒數。
+> 3.820），因為指令與問題一律保留。LLMLingua 的 2x 與 4x 各完成 150 筆；4x
+> 相比 2x 的生成延遲降低 29.4%，但 F1 下降 16.0%。EM 採用嚴格字串匹配，因此
+> LLMLingua 應主要參考 F1。延遲來自不同硬體（Part 1 本機 RTX 3060、Part 2
+> Colab T4、Part 3 Apple M5 Pro MPS，皆 `float16`），跨部分請比較 token 數與
+> 品質，不要比較絕對秒數。
 
 ## Repository layout
 
@@ -71,14 +72,14 @@ Sources: [Part 1](./part1_uncompressed/results_member1.json) ·
 | [shared/](./shared) | Sample index, prompt template, metrics and config shared by all members |
 | [part1_uncompressed/](./part1_uncompressed) | Uncompressed baseline pipeline + 150-sample results ([README](./part1_uncompressed/README.md)) |
 | [part2_truncation/](./part2_truncation) | Head-and-tail truncation + 2x/4x results ([README](./part2_truncation/README.md), [table](./part2_truncation/results_table.md)) |
-| [part3_llmlingua/](./part3_llmlingua) | Two-stage LLMLingua compress/evaluate pipeline + pilots ([README](./part3_llmlingua/README.md)) |
+| [part3_llmlingua/](./part3_llmlingua) | Two-stage LLMLingua pipeline + full 2x/4x results ([README](./part3_llmlingua/README.md)) |
 | [acl_latex.tex](./acl_latex.tex) | ACL two-column review report (Phase 1) |
 | [plan.md](./plan.md) | Work split and shared interface |
 | [project.md](./project.md) | Course project requirements |
 
 > `shared/` 是三人共用的樣本索引、prompt 模板、評分方式與參數設定；
 > `part1_uncompressed/` 是不壓縮基準流程與 150 筆結果；`part2_truncation/` 是
-> 頭尾截斷與 2x/4x 結果；`part3_llmlingua/` 是兩階段 LLMLingua 流程與 pilot；
+> 頭尾截斷與 2x/4x 結果；`part3_llmlingua/` 是兩階段 LLMLingua 流程與完整結果；
 > `acl_latex.tex` 為 ACL 格式回顧報告；`plan.md` 為分工與共用介面；
 > `project.md` 為課程專案要求。
 
@@ -136,13 +137,13 @@ Python 3.10–3.12 and follows the Colab T4 instructions in its own README.
 | --- | --- |
 | Part 1: 150-sample uncompressed results | Done |
 | Part 2: 150 samples at 2x and 4x | Done |
-| Part 3: two-stage LLMLingua pipeline | Done and verified on Colab T4 |
-| Part 3: full 150-sample 2x/4x run | **Pending** — only the 5-sample pilot is committed; `results_member3.json` does not exist yet |
+| Part 3: two-stage LLMLingua pipeline | Done; pilots verified on Colab T4 |
+| Part 3: full 150-sample 2x/4x run | Done on Apple M5 Pro MPS — 300 rows in `results_member3.json` |
 | Part 2: answer-position failure analysis | **Pending** — requested in `plan.md`, but `run_truncation.py` does not compute answer positions yet |
-| Combined table across all three methods | **Partial** — `make_table.py` covers Parts 1–2 only; add Part 3 when its full run exists |
+| Combined table across all three methods | README summary complete; `make_table.py` still covers Parts 1–2 only |
 
-> 目前狀態：Part 1 與 Part 2 的 150 筆結果已完成；Part 3 的兩階段 pipeline 已在
-> Colab T4 驗證，但只提交了 5 筆 pilot，尚未產生 `results_member3.json`。
-> `plan.md` 要求的「答案位於中間時的失敗案例分析」在 Part 2 仍未實作。
-> 合併表格目前只涵蓋 Part 1–2，待 Part 3 完整結果產生後再補上。
+> 目前狀態：Part 1、Part 2 與 Part 3 的 150 筆正式結果均已完成；Part 3 的 2x
+> 與 4x 共 300 筆，保存在 `results_member3.json`。`plan.md` 要求的「答案位於
+> 中間時的失敗案例分析」在 Part 2 仍未實作。README 已合併三種方法的摘要，
+> 但 `make_table.py` 目前仍只涵蓋 Part 1–2。
 

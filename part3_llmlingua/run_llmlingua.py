@@ -475,6 +475,19 @@ def run_evaluate(args: argparse.Namespace) -> int:
     }
 
     target = TargetModel(args.model, args.device, args.dtype)
+    source_samples = {
+        str(sample["id"]): sample
+        for sample in load_samples(args.samples, limit=None)
+    }
+    missing_sample_ids = sorted(
+        {str(row["id"]) for row in compressed_rows} - source_samples.keys()
+    )
+    if missing_sample_ids:
+        raise KeyError(
+            "compressed rows contain ids missing from the source samples: "
+            + ", ".join(missing_sample_ids[:5])
+        )
+    original_prompt_tokens_by_id: dict[str, int] = {}
     args.jsonl.parent.mkdir(parents=True, exist_ok=True)
     started_at = utc_now()
     new_rows = 0
@@ -491,6 +504,17 @@ def run_evaluate(args: argparse.Namespace) -> int:
                 source["question"],
                 args.max_new_tokens,
             )
+            sample_id = str(source["id"])
+            if sample_id not in original_prompt_tokens_by_id:
+                original_sample = source_samples[sample_id]
+                original_prompt_tokens_by_id[sample_id] = len(
+                    render_input_ids(
+                        target.tokenizer,
+                        original_sample["docs"],
+                        original_sample["question"],
+                    )
+                )
+            original_prompt_tokens = original_prompt_tokens_by_id[sample_id]
             evaluation_latency = time.perf_counter() - evaluation_started
             scores = score(answer, source["answers"])
             row = {
@@ -498,15 +522,18 @@ def run_evaluate(args: argparse.Namespace) -> int:
                 "question": source["question"],
                 "docs": source["compressed_docs"] if args.save_context else None,
                 "prompt_tokens": measured_prompt_tokens,
-                "original_prompt_tokens": source["original_prompt_tokens"],
+                "original_prompt_tokens": original_prompt_tokens,
+                "compression_measurement_original_prompt_tokens": source[
+                    "original_prompt_tokens"
+                ],
                 "target_compression_ratio": source["target_compression_ratio"],
                 "retained_fraction": (
-                    measured_prompt_tokens / source["original_prompt_tokens"]
-                    if source["original_prompt_tokens"]
+                    measured_prompt_tokens / original_prompt_tokens
+                    if original_prompt_tokens
                     else 0.0
                 ),
                 "compression_ratio": (
-                    source["original_prompt_tokens"] / measured_prompt_tokens
+                    original_prompt_tokens / measured_prompt_tokens
                     if measured_prompt_tokens
                     else 0.0
                 ),
@@ -629,6 +656,7 @@ def build_parser() -> argparse.ArgumentParser:
         "evaluate", help="generate answers from previously compressed contexts"
     )
     evaluate.add_argument("--input", type=Path, default=DEFAULT_COMPRESSED_JSONL)
+    evaluate.add_argument("--samples", type=Path, default=SAMPLES_PATH)
     evaluate.add_argument("--limit", type=int, default=None)
     evaluate.add_argument("--model", default=MIRROR_MODEL_ID)
     evaluate.add_argument(

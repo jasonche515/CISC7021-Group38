@@ -6,20 +6,17 @@ prompt template, sample order and EM/F1 implementation are identical to Part 1.
 
 ## 中文進度摘要
 
-這個資料夾是 Member 3 負責的 LLMLingua 部分。目前已在 Google Colab
-Tesla T4 上完成可運行的兩階段 pipeline：先用 LLMLingua 壓縮 prompt，釋放
-compressor 後，再載入 `Llama-3.2-3B-Instruct` 生成答案並計算 EM、token-level
-F1 和延遲。這樣可以避免 compressor 與 target model 同時佔用 GPU 而造成 OOM。
+這個資料夾是 Member 3 負責的 LLMLingua 部分。兩階段 pipeline 先用
+LLMLingua 壓縮 prompt，釋放 compressor 後，再載入
+`Llama-3.2-3B-Instruct` 生成答案並計算 EM、token-level F1 和延遲，避免兩個
+模型同時佔用記憶體。
 
-目前完成的五樣本 pilot 使用固定索引 `[17, 29, 126, 85, 112]`，每個樣本均測試
-2x 和 4x 壓縮。2x 的平均 F1 為 0.352、平均總延遲為 3.549 秒；4x 的平均 F1
-為 0.086、平均總延遲為 2.384 秒。初步結果顯示，更高壓縮率可以減少 token
-數量和推理時間，但答案品質會明顯下降。
-
-現階段結果只用來證明流程可行，不能當作最終結論。完整實驗會把長文本切成
-固定的1,400-token區塊，各區塊獨立壓縮後按原順序合併，避免超過Phi-2
-compressor的context limit。接下來需要跑完150題，並與uncompressed和
-head-and-tail truncation使用相同樣本及設定進行正式比較。
+正式實驗已於 2026 年 10 月 29 日在 Apple M5 Pro（MPS）上完成全部 150 條
+LongBench `multifieldqa_en` 樣本。每條樣本均測試 2x 和 4x，共 300 筆評估。
+長文本會切成固定的 1,400-token 區塊，各區塊獨立壓縮後按原順序合併，避免
+超過 Phi-2 compressor 的 context limit。2x 的平均 F1 為 0.2626；4x 的平均
+F1 為 0.2207，但平均 generation latency 由 3.017 秒降至 2.130 秒，呈現清楚的
+準確率與效率取捨。正式結果保存在 `results_member3.json`。
 
 The pipeline has two independent stages so the compressor and target LLM are
 never loaded at the same time:
@@ -85,8 +82,9 @@ python -m pip install -r part3_llmlingua/requirements_evaluate.txt
 python part3_llmlingua/run_llmlingua.py evaluate --limit 1 --device mps --dtype float16
 ```
 
-The Mac run is useful for a one-sample smoke test. Colab is recommended for the
-reported experiment because all members can use the same CUDA environment.
+The complete reported Part 3 experiment was run successfully on an Apple M5 Pro
+with MPS. Colab remains an alternative for reproducing the pipeline in a shared
+CUDA environment.
 
 ## Output files
 
@@ -149,6 +147,27 @@ it is strict and the pilot contains only five samples; it should not be treated
 as a stable final estimate. The outputs are saved in `pilot5_compressed.json`
 and `pilot5_results.json`, with their resumable JSONL checkpoints retained for
 reproducibility.
+
+## Full 150-sample experiment (29 October 2026)
+
+The complete run evaluated all 150 shared samples at both nominal compression
+targets, producing 300 result rows. Compression used `microsoft/phi-2`; answer
+generation used `unsloth/Llama-3.2-3B-Instruct` with greedy decoding on Apple
+M5 Pro MPS. The reported achieved ratios below use the target model tokenizer,
+which is also used by the other project methods.
+
+| Target | Achieved ratio | Mean prompt tokens | EM | Token F1 | Compression latency (s) | Generation latency (s) | Total latency (s) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2x | 2.094 | 3308.1 | 0.0067 | 0.2626 | 10.816 | 3.017 | 13.839 |
+| 4x | 3.508 | 1961.6 | 0.0133 | 0.2207 | 9.846 | 2.130 | 11.980 |
+
+Compared with 2x, the 4x condition reduced mean generation latency by about
+29.4% and mean total latency by about 13.4%, while mean token F1 decreased by
+about 16.0%. Exact Match is very strict for generated long-form answers and is
+based on only one exact match at 2x and two at 4x, so the F1 difference is the
+more informative accuracy result. These results are for the documented
+resource-constrained chunked reproduction and should be compared with the
+uncompressed and truncation outputs under the same shared configuration.
 
 Official resources:
 
