@@ -85,6 +85,12 @@ rows to be processed in chunks (mean 6.3 chunks). This differs from the
 whole-prompt setting of the original method and is an important experimental
 limitation. The vector version of the figure is available as
 [`accuracy_compression_tradeoff.pdf`](./figures/accuracy_compression_tradeoff.pdf).
+Four paired success and failure examples are documented in
+[`part3_llmlingua/qualitative_cases.md`](./part3_llmlingua/qualitative_cases.md).
+They are selected and regenerated from the committed JSON files by
+[`build_qualitative_cases.py`](./part3_llmlingua/build_qualitative_cases.py),
+with the complete 20-row data table saved as
+[`qualitative_cases.csv`](./part3_llmlingua/qualitative_cases.csv).
 
 > 圖中的橫軸越向右代表壓縮越強，縱軸越高代表問答 F1 越好。兩種方法均隨壓縮
 > 增強而下降；在本次實作中，head-and-tail truncation 在相近 token 預算下明顯

@@ -94,6 +94,9 @@ CUDA environment.
 | `compressed_member3.json` | compression-only summary and rows |
 | `results_member3.jsonl` | resumable answer/evaluation checkpoint |
 | `results_member3.json` | final 2x/4x EM, F1, tokens and latency summary |
+| `build_qualitative_cases.py` | reproducible four-rule case selection and artifact generator |
+| `qualitative_cases.csv` | full predictions and scores for 4 cases x 5 settings (20 rows) |
+| `qualitative_cases.md` | generated, report-ready success and failure analysis |
 
 The final rows use the shared interface and additionally record
 `target_compression_ratio`, `retained_fraction` and the actually achieved
@@ -168,6 +171,22 @@ based on only one exact match at 2x and two at 4x, so the F1 difference is the
 more informative accuracy result. These results are for the documented
 resource-constrained chunked reproduction and should be compared with the
 uncompressed and truncation outputs under the same shared configuration.
+
+## Qualitative case analysis
+
+Four paired success and failure cases are documented in
+[`qualitative_cases.md`](./qualitative_cases.md). They include exact fact
+preservation, a case where LLMLingua retains evidence removed by head-and-tail
+truncation, loss of a precise date at stronger compression, and replacement of
+the correct answer by a related distractor. The examples use predictions and
+scores from the committed 150-sample result files and are intended to explain,
+not replace, the aggregate evaluation. Run
+`python3 part3_llmlingua/build_qualitative_cases.py` from the repository root to
+reproduce the Markdown analysis and its complete 20-row CSV source table.
+
+> 質性分析選取四個有代表性的真實案例，涵蓋完整保留、LLMLingua 優於位置截斷、
+> 壓縮加強後遺失精確日期，以及保留錯誤干擾資訊。案例只用來解釋整體結果，不能
+> 取代 150 條樣本的統計比較。
 
 Official resources:
 
