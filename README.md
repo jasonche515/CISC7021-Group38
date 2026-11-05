@@ -65,6 +65,35 @@ Sources: [Part 1](./part1_uncompressed/results_member1.json) ·
 > Colab T4、Part 3 Apple M5 Pro MPS，皆 `float16`），跨部分請比較 token 數與
 > 品質，不要比較絕對秒數。
 
+## Accuracy–compression trade-off
+
+![Accuracy--compression trade-off](./figures/accuracy_compression_tradeoff.png)
+
+The figure is generated directly from the committed result JSON files by
+[`part3_llmlingua/plot_accuracy_compression.py`](./part3_llmlingua/plot_accuracy_compression.py).
+Increasing compression reduces token-level F1 for both methods. Head-and-tail
+truncation retains most of the baseline quality at approximately 2x compression
+(0.4296 to 0.4065 F1) and declines to 0.3620 at approximately 4x. Under this
+project's implementation, LLMLingua reaches 0.2626 and 0.2207 F1 at its 2x and
+4x settings, respectively, so it does not outperform the simpler truncation
+baseline at a comparable token budget.
+
+This result is specific to the present implementation and must not be treated as
+a general conclusion that LLMLingua is inferior. The Phi-2 compressor has a
+shorter context window than the input prompts, causing 296 of the 300 compressed
+rows to be processed in chunks (mean 6.3 chunks). This differs from the
+whole-prompt setting of the original method and is an important experimental
+limitation. The vector version of the figure is available as
+[`accuracy_compression_tradeoff.pdf`](./figures/accuracy_compression_tradeoff.pdf).
+
+> 圖中的橫軸越向右代表壓縮越強，縱軸越高代表問答 F1 越好。兩種方法均隨壓縮
+> 增強而下降；在本次實作中，head-and-tail truncation 在相近 token 預算下明顯
+> 高於 LLMLingua，因此 RQ1 與 RQ2 均可由此圖回答。不過這不能解讀為
+> 「LLMLingua 普遍較差」：Phi-2 compressor 的 context window 較短，300 筆結果中
+> 有 296 筆需要分塊壓縮（平均 6.3 個 chunks），與原論文的完整 prompt 設定不同，
+> 必須在最終報告中列為實驗限制。圖表由結果 JSON 自動產生，並同時提供 PNG 與
+> PDF 版本。
+
 ## Repository layout
 
 | Path | Description |
@@ -73,6 +102,7 @@ Sources: [Part 1](./part1_uncompressed/results_member1.json) ·
 | [part1_uncompressed/](./part1_uncompressed) | Uncompressed baseline pipeline + 150-sample results ([README](./part1_uncompressed/README.md)) |
 | [part2_truncation/](./part2_truncation) | Head-and-tail truncation + 2x/4x results ([README](./part2_truncation/README.md), [table](./part2_truncation/results_table.md)) |
 | [part3_llmlingua/](./part3_llmlingua) | Two-stage LLMLingua pipeline + full 2x/4x results ([README](./part3_llmlingua/README.md)) |
+| [figures/](./figures) | Automatically generated accuracy--compression figure in PNG and PDF formats |
 | [acl_latex.tex](./acl_latex.tex) | ACL two-column review report (Phase 1) |
 | [plan.md](./plan.md) | Work split and shared interface |
 | [project.md](./project.md) | Course project requirements |
