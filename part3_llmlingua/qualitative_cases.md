@@ -108,7 +108,3 @@ help explain the aggregate F1 decrease from 0.2626 at the 2x setting to
 0.2207 at 4x. They do not establish a general algorithm ranking because
 296 of 300 LLMLingua rows required chunked compression in this
 resource-constrained reproduction.
-
-> 中文摘要：案例由固定規則從相同的 150 條結果中選出，而不是手動挑選。
-> LLMLingua 有時能保留頭尾截斷遺失的中間證據，但也可能刪除日期等精確
-> 資訊，或保留相關但錯誤的干擾項。完整輸出及分數保存在 CSV 中。

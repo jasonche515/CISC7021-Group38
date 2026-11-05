@@ -12,7 +12,6 @@ import os
 import tempfile
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = REPO_ROOT / "figures"
 
@@ -27,12 +26,10 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-
 def load_json(relative_path: str) -> dict:
     path = REPO_ROOT / relative_path
     with path.open(encoding="utf-8") as file:
         return json.load(file)
-
 
 def load_points() -> dict[str, list[dict[str, float | str]]]:
     baseline = load_json("part1_uncompressed/results_member1.json")
@@ -95,7 +92,6 @@ def load_points() -> dict[str, list[dict[str, float | str]]]:
             },
         ],
     }
-
 
 def make_figure(points: dict[str, list[dict[str, float | str]]]) -> plt.Figure:
     plt.rcParams.update(
@@ -201,7 +197,6 @@ def make_figure(points: dict[str, list[dict[str, float | str]]]) -> plt.Figure:
 
     return figure
 
-
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     points = load_points()
@@ -215,7 +210,6 @@ def main() -> None:
 
     print(f"Created {png_path.relative_to(REPO_ROOT)}")
     print(f"Created {pdf_path.relative_to(REPO_ROOT)}")
-
 
 if __name__ == "__main__":
     main()

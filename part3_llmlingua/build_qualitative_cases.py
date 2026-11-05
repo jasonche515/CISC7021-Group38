@@ -13,15 +13,12 @@ import json
 from pathlib import Path
 from typing import Callable
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PART3_DIR = REPO_ROOT / "part3_llmlingua"
-
 
 def load_results(relative_path: str) -> list[dict]:
     with (REPO_ROOT / relative_path).open(encoding="utf-8") as file:
         return json.load(file)["results"]
-
 
 def index_by_id(rows: list[dict]) -> dict[str, dict]:
     indexed = {row["id"]: row for row in rows}
@@ -29,11 +26,9 @@ def index_by_id(rows: list[dict]) -> dict[str, dict]:
         raise ValueError("Duplicate sample ids found in a result file")
     return indexed
 
-
 def shortened(text: str, limit: int = 280) -> str:
     text = " ".join(text.split()).replace("|", "\\|")
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
-
 
 def load_data() -> dict[str, dict[str, dict]]:
     baseline = index_by_id(load_results("part1_uncompressed/results_member1.json"))
@@ -62,7 +57,6 @@ def load_data() -> dict[str, dict[str, dict]]:
     if len(id_sets) != 1 or len(next(iter(id_sets))) != 150:
         raise ValueError("The five settings do not contain the same 150 sample ids")
     return data
-
 
 def select_cases(data: dict[str, dict[str, dict]]) -> list[dict]:
     baseline = data["Uncompressed"]
@@ -191,7 +185,6 @@ def select_cases(data: dict[str, dict[str, dict]]) -> list[dict]:
             )
     return cases
 
-
 def method_rows(data: dict[str, dict[str, dict]], sample_id: str) -> list[dict]:
     records = []
     for method, rows in data.items():
@@ -219,14 +212,12 @@ def method_rows(data: dict[str, dict[str, dict]], sample_id: str) -> list[dict]:
         )
     return records
 
-
 def evidence_position(sample_id: str, phrase: str, samples: dict[str, dict]) -> float:
     document = samples[sample_id]["docs"]
     position = document.lower().find(phrase.lower())
     if position < 0:
         raise ValueError(f"Evidence phrase not found for sample {sample_id}: {phrase}")
     return position / len(document)
-
 
 def write_csv(
     path: Path,
@@ -267,7 +258,6 @@ def write_csv(
                         **row,
                     }
                 )
-
 
 def write_markdown(
     path: Path,
@@ -340,14 +330,9 @@ def write_markdown(
             "296 of 300 LLMLingua rows required chunked compression in this",
             "resource-constrained reproduction.",
             "",
-            "> 中文摘要：案例由固定規則從相同的 150 條結果中選出，而不是手動挑選。",
-            "> LLMLingua 有時能保留頭尾截斷遺失的中間證據，但也可能刪除日期等精確",
-            "> 資訊，或保留相關但錯誤的干擾項。完整輸出及分數保存在 CSV 中。",
-            "",
         ]
     )
     path.write_text("\n".join(lines), encoding="utf-8")
-
 
 def main() -> None:
     data = load_data()
@@ -365,7 +350,6 @@ def main() -> None:
         print(f"{case['category']}: {case['sample_id']}")
     print(f"Created {markdown_path.relative_to(REPO_ROOT)}")
     print(f"Created {csv_path.relative_to(REPO_ROOT)}")
-
 
 if __name__ == "__main__":
     main()
