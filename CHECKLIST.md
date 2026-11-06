@@ -2,13 +2,13 @@
 
 > **Note**：每一節英文段落下方均附中文對照說明，兩者如有出入以英文為準。
 
-Verification baseline: commit `183f787` (working tree clean), checked against
-[project.md](./project.md) and [plan.md](./plan.md) on 2026-11-01. All numbers in
-this file were recomputed from the committed result JSON files, not copied from
-the READMEs.
+Verification baseline: experiment outputs verified through commit `f321a6c`,
+checked against [project.md](./project.md) and [plan.md](./plan.md) on
+2026-11-06. All numbers in this file were recomputed from the result JSON files,
+not copied from the READMEs.
 
-> 核對基準：commit `183f787`（工作區乾淨），對照 [project.md](./project.md) 與
-> [plan.md](./plan.md)，核對日期 2026-11-01。本檔所有數字均由已提交的結果 JSON
+> 核對基準：實驗輸出已核對至 commit `f321a6c`，並於 2026-11-06 對照
+> [project.md](./project.md) 與 [plan.md](./plan.md)。本檔所有數字均由結果 JSON
 > 重新計算，非抄自 README。
 
 ## 1. Status at a glance
@@ -16,10 +16,29 @@ the READMEs.
 | Requirement | Weight | Due | State |
 | --- | ---: | --- | --- |
 | Task 1 — Review report | 15% | 10 Oct (passed) | ✅ Done |
-| Task 2 — Final report (ACL two-column) | 30% | 17 Nov 23:55 | ⬜ Not started |
+| Task 2 — Final report (ACL two-column) | 30% | 17 Nov 23:55 | ⚠️ Member 3 contribution drafted; group report not assembled |
 | Task 3 — Pre-recorded presentation | 30% (with Task 4) | 17 Nov | ⚠️ 1 of 4 items ready |
 | Task 4 — In-class presentation | | 17 / 24 Nov | ⬜ Not started |
 | System implementation (the three methods) | 20% | 17 Nov | ✅ Done |
+
+### 1.1 Experiment and programming audit (2026-11-06)
+
+| Technical item | Evidence | State |
+| --- | --- | --- |
+| Shared samples, prompt template, and EM/F1 metrics | [shared/](./shared) | ✅ Complete |
+| Uncompressed pipeline | [part1_uncompressed/](./part1_uncompressed) — 150 results | ✅ Complete |
+| Head-tail 2x and 4x pipelines | [part2_truncation/](./part2_truncation) — 150 results per ratio | ✅ Complete |
+| LLMLingua 2x and 4x pipeline | [part3_llmlingua/](./part3_llmlingua) — 300 results | ✅ Complete |
+| Accuracy–compression plotting code and figure | [plot script](./part3_llmlingua/plot_accuracy_compression.py) · [figure](./figures/accuracy_compression_tradeoff.pdf) | ✅ Complete |
+| Reproducible qualitative-case analysis | [script](./part3_llmlingua/build_qualitative_cases.py) · [cases](./part3_llmlingua/qualitative_cases.md) | ✅ Complete |
+| One generated table covering all five settings | [make_table.py](./part2_truncation/make_table.py) | ⚠️ Incomplete — currently only three rows |
+| Systematic answer-position analysis | Part 2 plan | ⚠️ Partial — one qualitative example exists, but no systematic implementation |
+| Cross-method latency comparison | Result JSONs from three machines | ⚠️ Unresolved — absolute times are not directly comparable |
+| Part 2 result documentation | [part2 README](./part2_truncation/README.md) | ⬜ Six placeholders remain |
+
+> 三個方法的主程式與完整結果均已完成，Member 3 的圖表和可重現案例分析也已完成。
+> 剩餘編程／實驗整合工作是：五列總表、Part 2 位置分析、Part 2 README 清理，
+> 以及決定不同硬體下 latency 應如何報告。
 
 **Deadline trap:** "Implementation & All Materials" is listed as *17 November
 2026, 12:00 AM*, which is midnight at the **start** of 17 Nov — effectively the
@@ -43,7 +62,8 @@ end of 16 Nov. That is roughly 24 hours earlier than the report deadline.
 
 ## 3. Phase 2 — Final report (Task 2, 30%)
 
-`project.md` requires at least three sections. Nothing has been written yet.
+`project.md` requires at least three sections. The group report has not been
+assembled, but a Member 3 methods/results contribution has been drafted.
 
 | Required section | Content required | State |
 | --- | --- | --- |
@@ -51,7 +71,7 @@ end of 16 Nov. That is roughly 24 hours earlier than the report deadline.
 | Detailed Description | Design, implementation, testing, evaluation, diagrams / flowcharts | ⬜ |
 | Conclusion | Lessons learned, problems and difficulties, future improvements | ⬜ |
 
-Supporting evidence that already exists (no new experiment needed):
+Supporting evidence that already exists for the main comparison:
 
 | Evidence | File | State |
 | --- | --- | --- |
@@ -60,19 +80,21 @@ Supporting evidence that already exists (no new experiment needed):
 | LLMLingua 2x and 4x, 150/150 each (300 rows) | [results_member3.json](./part3_llmlingua/results_member3.json) | ✅ |
 | Shared sample index, prompt template, metrics | [shared/](./shared) | ✅ |
 | Combined Markdown table | [results_table.md](./part2_truncation/results_table.md) | ⚠️ Parts 1–2 only |
+| Accuracy–compression figure | [PNG](./figures/accuracy_compression_tradeoff.png) · [PDF](./figures/accuracy_compression_tradeoff.pdf) | ✅ |
+| Reproducible qualitative examples | [Markdown](./part3_llmlingua/qualitative_cases.md) · [CSV](./part3_llmlingua/qualitative_cases.csv) | ✅ |
+| Member 3 report contribution | [final_report_contribution.md](./part3_llmlingua/final_report_contribution.md) | ⚠️ Draft; not yet assembled into the group report |
 
-> 報告三個必要章節均未開始。所需的實驗證據已齊（四個結果檔、共用索引、模板、
-> 指標），不需再跑新實驗；但合併表格目前只涵蓋 Part 1–2。
+> 小組總報告尚未組裝，但 Member 3 的方法與結果文字已有草稿。實驗證據、圖表與
+> 質性案例均已齊；合併表格目前仍只涵蓋 Part 1–2。
 
 Blocking gaps for the report (details in §6):
 
 | # | Gap | Blocks which section |
 | --- | --- | --- |
 | 1 | Combined 5-row table missing Part 3 | Detailed Description (results table) |
-| 2 | No accuracy–compression figure | Detailed Description, Introduction |
-| 3 | No qualitative success / failure examples | Detailed Description, Conclusion |
-| 4 | Standard deviations not reported anywhere | Detailed Description (review report promised mean and std) |
-| 5 | Answer-position failure analysis not implemented | Planned contribution for RQ2 / position bias |
+| 2 | Standard deviations and paired CIs are computed in this checklist but not integrated into the generated table/report | Detailed Description |
+| 3 | Systematic answer-position failure analysis not implemented; only one reproducible qualitative example exists | Planned contribution for RQ2 / position bias |
+| 4 | Cross-machine latency framing is unresolved | RQ3 and Detailed Description |
 
 ## 4. Phase 2 — Pre-recorded presentation (Task 3, part of 30%)
 
@@ -80,7 +102,7 @@ Blocking gaps for the report (details in §6):
 | --- | --- |
 | Slides file, 5 minutes, all members participate | ⬜ Missing |
 | Source code zip (optional) | ⚠️ Code ready in repo, zip not built |
-| Final results | ✅ Four result JSONs + combined table |
+| Final results | ✅ Four result JSONs; ⚠️ five-row combined table pending |
 | Presentation video uploaded to a public site + shared form | ⬜ Missing |
 
 > 投影片、影片與共用表單均未做；原始碼已在 repo 內，只需打包成 zip；結果檔已齊。
@@ -105,17 +127,17 @@ Blocking gaps for the report (details in §6):
 | EM and token-level F1 | M1 | ✅ `shared/metrics.py` |
 | Head-and-tail at 2x and 4x | M2 | ✅ Both ratios, 150/150 |
 | Achieved compression ratio recorded | M2 | ✅ Document 2.000 / 4.000, prompt 1.969 / 3.820 |
-| **Failure analysis when the answer sits in the middle** | M2 | ⬜ **Not implemented** — `run_truncation.py` has no answer-position logic |
+| **Failure analysis when the answer sits in the middle** | M2 | ⚠️ **Partial** — one reproducible qualitative case is at 65.1%, but `run_truncation.py` has no systematic answer-position logic |
 | LLMLingua at 2x and 4x | M3 | ✅ Both ratios, 150/150 |
 | Two-stage compress / evaluate to avoid OOM | M3 | ✅ Separate processes |
-| Accuracy–compression curve | M3 | ⬜ No figure |
-| Successful / failed compression cases | M3 | ⬜ Not written up |
+| Accuracy–compression curve | M3 | ✅ [PNG](./figures/accuracy_compression_tradeoff.png) · [PDF](./figures/accuracy_compression_tradeoff.pdf) |
+| Successful / failed compression cases | M3 | ✅ Reproducible [script](./part3_llmlingua/build_qualitative_cases.py), [CSV](./part3_llmlingua/qualitative_cases.csv), and [write-up](./part3_llmlingua/qualitative_cases.md) |
 | Combined table answering RQ1–RQ3 | All | ⚠️ README summary only; script covers Parts 1–2 |
 
-> 分工表內唯一未實作的功能性項目，是 Member 2 的「答案位於中間時的失敗案例分析」
-> ——程式碼完全沒有答案位置計算。其餘方法與數據均已交付。
+> 三個方法、Member 3 圖表及質性案例均已交付。尚未完成的功能性整合是五列總表；
+> Member 2 的答案位置分析只有個別案例，尚無系統化程式。
 
-## 7. Comparability audit (verified 2026-11-01)
+## 7. Comparability audit (verified 2026-11-06)
 
 Checks recomputed directly from the JSON files:
 
@@ -160,12 +182,12 @@ independent means:
 
 | # | Severity | Issue | Suggested action |
 | --- | --- | --- | --- |
-| 1 | 🔴 High | LLMLingua's drop is far larger than published results (−38.9% / −48.6% relative F1). 296 of 300 rows were **chunked** (mean 6.3 chunks, max 13) because the phi-2 compressor has a short context, so this is not the original whole-prompt LLMLingua. | State the deviation explicitly as a limitation in the report; do not claim "LLMLingua is worse than truncation" as a general finding |
+| 1 | 🔴 High | LLMLingua's drop is far larger than published results (−38.9% / −48.6% relative F1). 296 of 300 rows were **chunked** (mean 6.3 chunks, max 13) because the phi-2 compressor has a short context, so this is not the original whole-prompt LLMLingua. | ✅ Documented in the Member 3 README, qualitative analysis, and report draft; retain it as a limitation |
 | 2 | 🔴 High | Latencies come from three different machines (RTX 3060, Colab T4, Apple M5 Pro MPS), but RQ3 asks about end-to-end latency | Only compare latencies **within** a part, or re-run generation on one machine for the RQ3 table |
 | 3 | 🟠 Medium | `make_table.py` cannot read `results_member3.json` (summary nested under `2x` / `4x`) | Extend the script so the combined table is generated, not hand-typed |
 | 4 | 🟠 Medium | 6 unfilled placeholders in [part2_truncation/README.md](./part2_truncation/README.md) lines 94–105 (`[X]`, `[150]`, `[0.0733]`, `[版本]`) | Fill from the verified table in §7 |
-| 5 | 🟠 Medium | No standard deviations anywhere, although the review report promised mean and std | Add sd columns from §7 |
-| 6 | 🟡 Low | Answer-position analysis missing (planned Part 2 contribution) | Implement or drop it from the report's claims |
+| 5 | 🟠 Medium | Standard deviations and paired CIs are computed in §7 but are absent from the generated combined table | Add sd/CI columns or a statistical-results table to the final report |
+| 6 | 🟡 Low | Systematic answer-position analysis missing (planned Part 2 contribution); one qualitative example is available | Implement the systematic analysis or limit the report to the observed case |
 | 7 | 🟡 Low | `docs` field empty in all outputs, deviating from the `plan.md` interface | Record as a known deviation, or backfill with `--save-context` |
 | 8 | 🟡 Low | [part2_truncation/run_truncation_result.ipynb](./part2_truncation/run_truncation_result.ipynb) (190 KB) is a Colab artifact with embedded outputs | Keep if used as evidence, otherwise drop from the zip |
 | 9 | 🟡 Low | `plan.md` still says Colab T4; actual runs are local GPU / Colab / M5 Pro | Leave `plan.md` as the original plan; describe the actual setup in the report |
@@ -174,11 +196,11 @@ independent means:
 
 - **Introduction**: motivation, literature, and the three research questions — [acl_latex.tex](./acl_latex.tex) §Papers Reviewed / §Existing Methodologies can be condensed directly.
 - **Detailed Description — Method**: the shared harness, the three methods, and the comparability contract are fully documented in [README.md](./README.md), [part1](./part1_uncompressed/README.md), [part2](./part2_truncation/README.md), [part3](./part3_llmlingua/README.md).
-- **Detailed Description — Results**: the tables in §7 are final; only the combined-table script and figure are missing.
+- **Detailed Description — Results**: the metrics in §7, accuracy–compression figure, and reproducible qualitative cases are ready; only the generated five-row table and systematic position analysis are missing.
 - **Conclusion — difficulties**: the gated model, Windows console encoding crash at sample 87, the compressor context limit forcing chunking, and the Colab T4 OOM forcing chunked prefill are all real, documented difficulties.
 
-> 現在即可動筆：Introduction、方法章節、結果章節的表格（§7 已定案）、以及結論中
-> 的困難與經驗。缺的只有合併表格腳本、圖表、質性案例與位置分析。
+> 現在即可動筆：Introduction、方法、結果、圖表、質性案例，以及困難與經驗都已有
+> 證據。技術上仍缺五列總表、系統化位置分析與 latency 比較口徑。
 
 ## 10. Suggested order of work
 
@@ -186,8 +208,8 @@ independent means:
 | ---: | --- | --- | --- |
 | 1 | Extend `make_table.py` to emit all 5 rows + sd columns | M2 | ~1 h |
 | 2 | Fill the 6 placeholders in `part2_truncation/README.md` | M2 | ~15 min |
-| 3 | Accuracy–compression figure from the 5 rows | M3 | ~2 h |
-| 4 | 3–4 qualitative success / failure examples (one per method) | M3 | ~1 h |
+| 3 | ✅ Accuracy–compression figure from the 5 rows | M3 | Done |
+| 4 | ✅ Reproducible qualitative success / failure examples | M3 | Done |
 | 5 | Answer-position analysis for Part 2, or remove the claim | M2 | ~3 h |
 | 6 | Decide the RQ3 latency framing (within-part only, or re-run) | All | ~1 h meeting |
 | 7 | Write the ACL final report | All | ~3 days |
