@@ -40,7 +40,13 @@ Sources: [Part 1](./part1_uncompressed/results_member1.json) ·
 [Part 2 2x](./part2_truncation/results_member2_2x.json) ·
 [Part 2 4x](./part2_truncation/results_member2_4x.json) ·
 [Part 3](./part3_llmlingua/results_member3.json) ·
-[combined table](./part2_truncation/results_table.md).
+[same-environment rerun and combined table](./results_same_machine/README.md).
+
+The table above reports the **per-part runs**, which happened on three different
+machines. A second, single-environment run of all five settings is documented in
+[`results_same_machine/`](./results_same_machine/README.md); its quality metrics
+reproduce the table above within 0.0075 F1, and it is the only valid source for
+cross-method latency. Use it for every RQ3 claim.
 
 - Head-and-tail truncation loses 5.4% relative F1 at 2x and 15.7% at 4x while
   removing 49% and 74% of the prompt tokens. All 150 samples were truncated in
@@ -53,7 +59,9 @@ Sources: [Part 1](./part1_uncompressed/results_member1.json) ·
   matching of generated answers, so F1 is the more informative quality metric.
 - Latencies come from different hardware — Part 1 on a local RTX 3060, Part 2
   on a Colab T4, and Part 3 on Apple M5 Pro MPS, all `float16` — so compare
-  token counts and quality across parts, not absolute seconds.
+  token counts and quality across parts, not absolute seconds. Use the
+  [same-environment rerun](#same-environment-rerun-latency-baseline) below for
+  every latency comparison instead.
 
 > 上表數字直接取自各結果檔（非人手抄錄）。頭尾截斷在 2x 只損失 5.4% 相對 F1、
 > 4x 損失 15.7%，但分別減少 49% 與 74% 的 prompt token；兩個設定的 150 筆全部
@@ -63,7 +71,40 @@ Sources: [Part 1](./part1_uncompressed/results_member1.json) ·
 > 相比 2x 的生成延遲降低 29.4%，但 F1 下降 16.0%。EM 採用嚴格字串匹配，因此
 > LLMLingua 應主要參考 F1。延遲來自不同硬體（Part 1 本機 RTX 3060、Part 2
 > Colab T4、Part 3 Apple M5 Pro MPS，皆 `float16`），跨部分請比較 token 數與
-> 品質，不要比較絕對秒數。
+> 品質，不要比較絕對秒數；延遲比較一律改用下節的同環境重跑結果。
+
+## Same-environment rerun (latency baseline)
+
+Because the three per-part runs used different hardware, [`run_all.py`](./run_all.py)
+re-runs all five settings in one process on one GPU and writes to
+[`results_same_machine/`](./results_same_machine). Quality reproduces the table
+above within 0.0075 F1; what changes materially is the latency picture.
+
+| Method | n | EM | F1 | Total lat (s) | vs uncompressed |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Uncompressed | 150 | 0.1000 | 0.4350 | 9.43 | — |
+| Head-tail 2x | 150 | 0.0733 | 0.3990 | 5.32 | −43.6% |
+| Head-tail 4x | 150 | 0.0667 | 0.3633 | 3.23 | −65.7% |
+| LLMLingua 2x | 150 | 0.0067 | 0.2569 | 13.57 | +43.9% |
+| LLMLingua 4x | 150 | 0.0067 | 0.2221 | 10.76 | +14.1% |
+
+Head-and-tail truncation is effectively free (0.019–0.020 s of compression) and
+cuts end-to-end latency by 44% and 66%. LLMLingua spends 6.7–7.5 s per question
+inside the compressor, which is more than its generation saving can repay: at 2x
+it is 44% **slower** than the uncompressed baseline despite removing 52% of the
+prompt tokens. The rerun also makes the paired contrast Uncompressed → Head-tail
+2x significant (−0.0360, CI [−0.069, −0.003]) where the per-part run was not, so
+that pair should be reported as a small loss at the edge of significance.
+
+> 由於三次原始實驗使用不同硬體，`run_all.py` 會在單一程序、單一 GPU 上重跑
+> 全部五個設定，輸出到 `results_same_machine/`。品質指標與上表相差在 0.0075 F1
+> 以內，真正改變的是延遲結果。頭尾截斷的壓縮幾乎不耗時（0.019–0.020 秒），
+> 端到端延遲分別降低 44% 與 66%；LLMLingua 每題要花 6.7–7.5 秒在 compressor
+> 上，遠超過生成階段省下的時間，因此 2x 雖然減少 52% 的 prompt token，端到端
+> 反而比不壓縮慢 44%。重跑也讓 Uncompressed → Head-tail 2x 的配對比較變成顯著
+> （−0.0360，信賴區間 [−0.069, −0.003]），而原始跑並未達顯著，因此這一組應
+> 描述為「損失很小、位於顯著性邊緣」。完整表格、配對信賴區間與重現比較見
+> [`results_same_machine/README.md`](./results_same_machine/README.md)。
 
 ## Accuracy–compression trade-off
 
@@ -106,18 +147,23 @@ with the complete 20-row data table saved as
 | --- | --- |
 | [shared/](./shared) | Sample index, prompt template, metrics and config shared by all members |
 | [part1_uncompressed/](./part1_uncompressed) | Uncompressed baseline pipeline + 150-sample results ([README](./part1_uncompressed/README.md)) |
-| [part2_truncation/](./part2_truncation) | Head-and-tail truncation + 2x/4x results ([README](./part2_truncation/README.md), [table](./part2_truncation/results_table.md)) |
+| [part2_truncation/](./part2_truncation) | Head-and-tail truncation + 2x/4x results ([README](./part2_truncation/README.md), [table generator](./part2_truncation/make_table.py)) |
 | [part3_llmlingua/](./part3_llmlingua) | Two-stage LLMLingua pipeline + full 2x/4x results ([README](./part3_llmlingua/README.md)) |
+| [results_same_machine/](./results_same_machine) | Single-GPU rerun of all five settings; the only valid source for cross-method latency ([README](./results_same_machine/README.md)) |
+| [run_all.py](./run_all.py) | Driver that reruns Parts 1–3 in one environment and writes `results_same_machine/` |
 | [figures/](./figures) | Automatically generated accuracy--compression figure in PNG and PDF formats |
 | [acl_latex.tex](./acl_latex.tex) | ACL two-column review report (Phase 1) |
 | [plan.md](./plan.md) | Work split and shared interface |
 | [project.md](./project.md) | Course project requirements |
+| [CHECKLIST.md](./CHECKLIST.md) | Requirement-by-requirement completion checklist with recomputed metrics |
 
 > `shared/` 是三人共用的樣本索引、prompt 模板、評分方式與參數設定；
 > `part1_uncompressed/` 是不壓縮基準流程與 150 筆結果；`part2_truncation/` 是
 > 頭尾截斷與 2x/4x 結果；`part3_llmlingua/` 是兩階段 LLMLingua 流程與完整結果；
+> `results_same_machine/` 是同一張 GPU 上重跑五個設定的結果，也是跨方法延遲的
+> 唯一有效來源，`run_all.py` 則是一次跑完 Part 1–3 的驅動程式；
 > `acl_latex.tex` 為 ACL 格式回顧報告；`plan.md` 為分工與共用介面；
-> `project.md` 為課程專案要求。
+> `project.md` 為課程專案要求；`CHECKLIST.md` 為逐項需求完成度核對表。
 
 ## Quick start
 
@@ -148,6 +194,18 @@ python -m pip install -r part3_llmlingua\requirements_evaluate.txt
 python part3_llmlingua\run_llmlingua.py evaluate --device cuda --dtype float16
 ```
 
+```powershell
+# All five settings in one environment, then the combined table (for RQ3 latency)
+.\.venv\Scripts\python.exe run_all.py --limit 3     # smoke test
+.\.venv\Scripts\python.exe run_all.py               # full resumable run
+.\.venv\Scripts\python.exe part2_truncation\make_table.py --rerun-dir results_same_machine
+```
+
+`run_all.py` needs an environment where both `llmlingua` and a Llama-3.2-capable
+`transformers` import together; it patches the Phi-2 key/value cache API for
+newer `transformers` versions. It writes to `results_same_machine/` and never
+modifies the per-part result files.
+
 Every runner is resumable: it writes one `.jsonl` record per sample and skips
 completed ids on re-run (pass `--no-resume` to start over). Full flags and output
 formats are in [Part 1](./part1_uncompressed/README.md),
@@ -165,7 +223,11 @@ Python 3.10–3.12 and follows the Colab T4 instructions in its own README.
 > 輸出格式見 Part 1、Part 2、Part 3 各自的 README。純 CPU 環境請改裝
 > `torch --index-url https://download.pytorch.org/whl/cpu`，並去掉
 > `--device cuda --dtype float16`（每筆約 152 秒，而非 4.6 秒）；Part 3 需
-> Python 3.10–3.12，並依其 README 在 Colab T4 上執行。
+> Python 3.10–3.12，並依其 README 在 Colab T4 上執行。若要在同一環境重跑全部
+> 五個設定（RQ3 延遲比較用），改用根目錄的 `run_all.py`，再以
+> `--rerun-dir results_same_machine` 重算合併表格；`run_all.py` 需要
+> `llmlingua` 與支援 Llama 3.2 的 `transformers` 共存於同一環境，它會自行修補
+> Phi-2 的 key/value cache 介面，且不會改動各 part 的原始結果檔。
 
 ## Open items
 
@@ -176,10 +238,11 @@ Python 3.10–3.12 and follows the Colab T4 instructions in its own README.
 | Part 3: two-stage LLMLingua pipeline | Done; pilots verified on Colab T4 |
 | Part 3: full 150-sample 2x/4x run | Done on Apple M5 Pro MPS — 300 rows in `results_member3.json` |
 | Part 2: answer-position failure analysis | **Pending** — requested in `plan.md`, but `run_truncation.py` does not compute answer positions yet |
-| Combined table across all three methods | README summary complete; `make_table.py` still covers Parts 1–2 only |
+| Combined table across all five settings | Done — `make_table.py` now reads all five settings; generated output lives in `results_same_machine/` |
+| Cross-method latency (RQ3) | Done — `run_all.py` reran all five settings on one GPU; see [`results_same_machine/`](./results_same_machine/README.md) |
 
 > 目前狀態：Part 1、Part 2 與 Part 3 的 150 筆正式結果均已完成；Part 3 的 2x
 > 與 4x 共 300 筆，保存在 `results_member3.json`。`plan.md` 要求的「答案位於
-> 中間時的失敗案例分析」在 Part 2 仍未實作。README 已合併三種方法的摘要，
-> 但 `make_table.py` 目前仍只涵蓋 Part 1–2。
+> 中間時的失敗案例分析」在 Part 2 仍未實作。五個設定的合併表格已可產生，
+> 跨方法延遲也已在同一張 GPU 上重跑取得，兩者都放在 `results_same_machine/`。
 
