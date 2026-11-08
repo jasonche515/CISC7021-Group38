@@ -2,33 +2,39 @@
 
 > **Note**：每一節英文段落下方均附中文對照說明，兩者如有出入以英文為準。
 
-Verification baseline: experiment outputs verified through commit `4c0310b`,
-checked against [project.md](./project.md) and [plan.md](./plan.md) on
-2026-11-07. All numbers in this file were recomputed from the result JSON files,
-not copied from the READMEs.
+Verification baseline: experiment outputs verified through commit `4c0310b` for
+Parts 1–3, plus the Part 4 Colab run (`results_member4.json`, 2026-11-08), checked
+against [project.md](./project.md) and [plan.md](./plan.md) on 2026-11-07 and
+re-checked after Part 4 on 2026-11-08. All numbers in this file were recomputed
+from the result JSON files, not copied from the READMEs.
 
-Two result sets now exist: the **per-part runs** on three different machines
-(§7.1) and the **same-environment rerun** produced by `run_all.py` (§7.2).
-Quality is reported from the per-part runs because that is what each member's
-README documents; every latency claim must come from §7.2.
+Two result sets now exist: the **per-part runs** on four different machines
+(§7.1) and the **same-environment rerun** produced by `run_all.py`, which covers
+Parts 1–3 only (§7.2). Part 4 has no common-hardware counterpart at all, so its
+latency must be quoted on its own and never compared with §7.2. Quality is
+reported from the per-part runs because that is what each member's README
+documents; every latency claim must come from §7.2.
 
-> 核對基準：實驗輸出已核對至 commit `4c0310b`，並於 2026-11-07 對照
-> [project.md](./project.md) 與 [plan.md](./plan.md)。本檔所有數字均由結果 JSON
-> 重新計算，非抄自 README。目前存在兩組結果：§7.1 的各 part 原始跑（三台不同
-> 機器）與 §7.2 由 `run_all.py` 產生的同環境重跑。品質指標採各 part 原始跑
-> （各成員 README 記錄的即是此組）；延遲一律引用 §7.2。
+> 核對基準：Part 1–3 的實驗輸出已核對至 commit `4c0310b`，Part 4 則以
+> 2026-11-08 的 Colab 執行結果（`results_member4.json`）為準，並於 2026-11-07
+> 及 Part 4 完成後的 2026-11-08 兩次對照 [project.md](./project.md) 與
+> [plan.md](./plan.md)。本檔所有數字均由結果 JSON 重新計算，非抄自 README。
+> 目前存在兩組結果：§7.1 的各 part 原始跑（四台不同機器），以及 §7.2 由
+> `run_all.py` 產生、僅涵蓋 Part 1–3 的同環境重跑。Part 4 完全沒有同硬體對照，
+> 其延遲必須單獨陳述，不可與 §7.2 相比。品質指標採各 part 原始跑（各成員 README
+> 記錄的即是此組）；延遲一律引用 §7.2。
 
 ## 1. Status at a glance
 
 | Requirement | Weight | Due | State |
 | --- | ---: | --- | --- |
 | Task 1 — Review report | 15% | 10 Oct (passed) | ✅ Done |
-| Task 2 — Final report (ACL two-column) | 30% | 17 Nov 23:55 | ⚠️ Member 3 contribution drafted; group report not assembled |
+| Task 2 — Final report (ACL two-column) | 30% | 17 Nov 23:55 | ⚠️ Member 3 and Member 4 contributions drafted; group report not assembled |
 | Task 3 — Pre-recorded presentation | 30% (with Task 4) | 17 Nov | ⚠️ 1 of 4 items ready |
-| Task 4 — In-class presentation | | 17 / 24 Nov | ⬜ Not started |
-| System implementation (the three methods) | 20% | 17 Nov | ✅ Done |
+| Task 4 — In-class presentation | — (shared with Task 3) | 17 / 24 Nov | ⬜ Not started |
+| System implementation (the four parts) | 20% | 17 Nov | ✅ Done |
 
-### 1.1 Experiment and programming audit (2026-11-07)
+### 1.1 Experiment and programming audit (2026-11-08)
 
 | Technical item | Evidence | State |
 | --- | --- | --- |
@@ -36,16 +42,18 @@ README documents; every latency claim must come from §7.2.
 | Uncompressed pipeline | [part1_uncompressed/](./part1_uncompressed) — 150 results | ✅ Complete |
 | Head-tail 2x and 4x pipelines | [part2_truncation/](./part2_truncation) — 150 results per ratio | ✅ Complete |
 | LLMLingua 2x and 4x pipeline | [part3_llmlingua/](./part3_llmlingua) — 300 results | ✅ Complete |
-| Accuracy–compression plotting code and figure | [plot script](./part3_llmlingua/plot_accuracy_compression.py) · [figure](./figures/accuracy_compression_tradeoff.pdf) | ✅ Complete |
+| LLMLingua-enhanced 2x and 4x pipeline | [part4_llmlingua_enhanced/](./part4_llmlingua_enhanced) — 300 results, 0 chunked | ✅ Complete |
+| Accuracy–compression plotting code and figure | [plot script](./part4_llmlingua_enhanced/plot_accuracy_compression.py) · [figure](./figures/accuracy_compression_tradeoff.pdf) | ✅ Complete for Parts 1–4 — reads all five result files and overlays seven settings |
 | Reproducible qualitative-case analysis | [script](./part3_llmlingua/build_qualitative_cases.py) · [cases](./part3_llmlingua/qualitative_cases.md) | ✅ Complete |
-| One generated table covering all five settings | [make_table.py](./part2_truncation/make_table.py) · [numbers](./results_same_machine/README.md) | ✅ All five settings, but the script must be run with `--rerun-dir results_same_machine` to reflect the rerun |
+| One generated table covering all seven settings | [make_table.py](./part4_llmlingua_enhanced/make_table.py) · [table](./part4_llmlingua_enhanced/results_table.md) | ✅ 7 rows and 10 paired contrasts from Parts 1–4; `--rerun-dir results_same_machine` switches to the rerun |
 | Systematic answer-position analysis | Part 2 plan | ⚠️ Partial — one qualitative example exists, but no systematic implementation |
-| Cross-method latency comparison | [run_all.py](./run_all.py) · [results_same_machine/](./results_same_machine) | ✅ Complete — all five settings rerun on one GPU |
+| Cross-method latency comparison | [run_all.py](./run_all.py) · [results_same_machine/](./results_same_machine) | ✅ Complete for Parts 1–3 — all five of those settings rerun on one GPU; Part 4 has no counterpart |
 | Part 2 result documentation | [part2 README](./part2_truncation/README.md) | ✅ Placeholders filled from the per-part summaries |
 
-> 三個方法的主程式與完整結果均已完成，Member 3 的圖表與可重現案例分析已完成，
-> 五列總表與同機器延遲比較亦已就緒。剩餘的編程工作只有 Part 2 的系統化答案
-> 位置分析（目前僅有個別案例）。
+> 四個部分的程式與完整結果均已完成（Part 4 共 300 筆、完全沒有切塊），Member 3
+> 的圖表與可重現案例分析已完成，七列總表與同機器延遲比較亦已就緒。剩下的編程
+> 工作有三項：Part 2 的系統化答案位置分析、把 Part 4 加進 accuracy–compression
+> 圖，以及為 Part 4 補一組同硬體延遲量測（目前沒有）。
 
 **Deadline trap:** "Implementation & All Materials" is listed as *17 November
 2026, 12:00 AM*, which is midnight at the **start** of 17 Nov — effectively the
@@ -85,15 +93,18 @@ Supporting evidence that already exists for the main comparison:
 | Uncompressed baseline, 150/150 | [results_member1.json](./part1_uncompressed/results_member1.json) | ✅ |
 | Head-tail 2x and 4x, 150/150 each | [2x](./part2_truncation/results_member2_2x.json) · [4x](./part2_truncation/results_member2_4x.json) | ✅ |
 | LLMLingua 2x and 4x, 150/150 each (300 rows) | [results_member3.json](./part3_llmlingua/results_member3.json) | ✅ |
+| LLMLingua-enhanced 2x and 4x, 150/150 each (300 rows, 0 chunked) | [results_member4.json](./part4_llmlingua_enhanced/results_member4.json) | ✅ |
 | Shared sample index, prompt template, metrics | [shared/](./shared) | ✅ |
-| Combined table, all five settings | [same-environment numbers](./results_same_machine/README.md) · [generated export](./results_same_machine/results_table.md) | ⚠️ The generated export is stale — see the warning at the top of that file |
-| Accuracy–compression figure | [PNG](./figures/accuracy_compression_tradeoff.png) · [PDF](./figures/accuracy_compression_tradeoff.pdf) | ✅ |
+| Combined table, all seven settings | [Part 4 table](./part4_llmlingua_enhanced/results_table.md) · [same-environment numbers](./results_same_machine/README.md) | ✅ Part 1–4 with paired contrasts; the `results_same_machine` export remains stale for Part 1–3 |
+| Accuracy–compression figure | [PNG](./figures/accuracy_compression_tradeoff.png) · [PDF](./figures/accuracy_compression_tradeoff.pdf) | ✅ All seven settings from Parts 1–4 |
 | Reproducible qualitative examples | [Markdown](./part3_llmlingua/qualitative_cases.md) · [CSV](./part3_llmlingua/qualitative_cases.csv) | ✅ |
 | Member 3 report contribution | [part3 README](./part3_llmlingua/README.md) · [qualitative cases](./part3_llmlingua/qualitative_cases.md) | ⚠️ Narrative lives inside the Part 3 README and the case write-up; no standalone `final_report_contribution.md` was ever created |
+| Member 4 report contribution | [part4 README](./part4_llmlingua_enhanced/README.md) | ✅ Methods, results, cost and limitations sections are written; still needs merging into the group report |
 
-> 小組總報告尚未組裝，但 Member 3 的方法與結果文字已有草稿，散見於 Part 3 的
-> README 與質性案例檔（先前指向的 `final_report_contribution.md` 並不存在）。
-> 實驗證據、圖表、質性案例與五個設定的合併表格均已齊備。
+> 小組總報告尚未組裝，但 Member 3 與 Member 4 的方法與結果文字已有草稿，分別
+> 見於 Part 3 的 README、質性案例檔與 Part 4 的 README（先前指向的
+> `final_report_contribution.md` 並不存在）。實驗證據、七個設定的合併表格與
+> 質性案例均已齊備；accuracy–compression 圖仍只含 Part 1–3。
 
 Blocking gaps for the report (details in §6):
 
@@ -109,10 +120,12 @@ Blocking gaps for the report (details in §6):
 | --- | --- |
 | Slides file, 5 minutes, all members participate | ⬜ Missing |
 | Source code zip (optional) | ⚠️ Code ready in repo, zip not built |
-| Final results | ✅ Five result JSON sets (per-part + same-environment) and a combined table |
+| Final results | ✅ Five per-part result files (Parts 1–4) plus the same-environment rerun and a 7-row combined table |
 | Presentation video uploaded to a public site + shared form | ⬜ Missing |
 
-> 投影片、影片與共用表單均未做；原始碼已在 repo 內，只需打包成 zip；結果檔已齊。
+> 投影片、影片與共用表單均未做；原始碼已在 repo 內，只需打包成 zip；四個部分的
+> 結果檔已齊（Part 1 一份、Part 2 兩份、Part 3 一份、Part 4 一份），另有同環境
+> 重跑結果與七列合併表格。
 
 ## 5. Phase 2 — In-class presentation (Task 4)
 
@@ -129,7 +142,7 @@ Blocking gaps for the report (details in §6):
 | Commitment | Owner | State |
 | --- | --- | --- |
 | Fixed 150-sample index in `shared/samples.json` | M1 | ✅ 150 ids, `seed=42` |
-| Single shared prompt template | M1 | ✅ `render_input_ids` used by all three runners |
+| Single shared prompt template | M1 | ✅ `render_input_ids` used by all four runners |
 | Temperature zero, fixed max new tokens | M1 | ✅ `do_sample=False`, `max_new_tokens=64` |
 | EM and token-level F1 | M1 | ✅ `shared/metrics.py` |
 | Head-and-tail at 2x and 4x | M2 | ✅ Both ratios, 150/150 |
@@ -137,27 +150,31 @@ Blocking gaps for the report (details in §6):
 | **Failure analysis when the answer sits in the middle** | M2 | ⚠️ **Partial** — one reproducible qualitative case is at 65.1%, but `run_truncation.py` has no systematic answer-position logic |
 | LLMLingua at 2x and 4x | M3 | ✅ Both ratios, 150/150 |
 | Two-stage compress / evaluate to avoid OOM | M3 | ✅ Separate processes |
-| Accuracy–compression curve | M3 | ✅ [PNG](./figures/accuracy_compression_tradeoff.png) · [PDF](./figures/accuracy_compression_tradeoff.pdf) |
+| Accuracy–compression curve | M3 / M4 | ✅ [PNG](./figures/accuracy_compression_tradeoff.png) · [PDF](./figures/accuracy_compression_tradeoff.pdf) — all three methods, generated by [Part 4 plot script](./part4_llmlingua_enhanced/plot_accuracy_compression.py) |
 | Successful / failed compression cases | M3 | ✅ Reproducible [script](./part3_llmlingua/build_qualitative_cases.py), [CSV](./part3_llmlingua/qualitative_cases.csv), and [write-up](./part3_llmlingua/qualitative_cases.md) |
-| Combined table answering RQ1–RQ3 | All | ✅ [make_table.py](./part2_truncation/make_table.py) covers all five settings; latency from [run_all.py](./run_all.py) |
+| LLMLingua-enhanced at 2x and 4x, no chunking | M4 | ✅ Both ratios, 150/150, 0 chunked |
+| Question-aware single-pass compression verified | M4 | ✅ `condition_on_question=true`, `rank_method=longllmlingua`, `max_num_compression_chunks=1` in `results_member4_compressed.json` |
+| Combined table answering RQ1–RQ3 | All | ✅ [Part 4 make_table.py](./part4_llmlingua_enhanced/make_table.py) covers all seven settings; latency from [run_all.py](./run_all.py) for Parts 1–3 |
 
-> 三個方法、Member 3 圖表、質性案例、五列總表與同機器延遲比較均已交付。尚未
-> 完成的功能性整合只剩 Member 2 的系統化答案位置分析（目前僅有個別案例）。
+> 四個部分、Member 3 圖表、質性案例、七列總表與同機器延遲比較均已交付。尚未
+> 完成的功能性整合只剩三項：Member 2 的系統化答案位置分析（目前僅有個別案例）、
+> 把 Part 4 加進 accuracy–compression 圖，以及 Part 4 的同硬體延遲量測。
 
-## 7. Comparability audit (verified 2026-11-07)
+## 7. Comparability audit (verified 2026-11-08)
 
-### 7.1 Per-part runs (three machines)
+### 7.1 Per-part runs (four machines)
 
 Checks recomputed directly from the JSON files:
 
 | Check | Result |
 | --- | --- |
-| Sample ids identical across all four result files and `samples.json` | ✅ 150 / 150 match |
+| Sample ids identical across all five result files and `samples.json` | ✅ 150 / 150 match in every file |
 | Target model identical | ✅ `unsloth/Llama-3.2-3B-Instruct` in all files |
-| Row count per result file | ✅ 150, 150, 150, 300 rows, no duplicate ids |
+| Row count per result file | ✅ 150, 150, 150, 300 and 300 rows, no duplicate ids |
 | Empty answers | ✅ 0 |
 | Gold `answers` field present | ✅ 0 missing |
-| `docs` field populated | ⚠️ Empty in **all** files, so `plan.md`'s declared interface `{… docs …}` is not met, although all three parts are equally empty and therefore comparable |
+| `docs` field populated | ⚠️ Empty in **all** files, so `plan.md`'s declared interface `{… docs …}` is not met, although every part is equally empty and therefore comparable |
+| Chunking (Part 3 vs Part 4) | ✅ Part 3: 296 / 300 rows chunked (mean 6.3 chunks). Part 4: 0 / 300 chunked, `max_num_compression_chunks = 1` |
 
 Recomputed metrics:
 
@@ -168,6 +185,8 @@ Recomputed metrics:
 | Head-tail 4x | 150 | 10 | 0.0667 | 0.3620 | 0.2978 | 1 801.2 | 74.1% |
 | LLMLingua 2x | 150 | 1 | 0.0067 | 0.2626 | 0.2675 | 3 308.1 | 52.5% |
 | LLMLingua 4x | 150 | 2 | 0.0133 | 0.2207 | 0.2396 | 1 961.6 | 71.8% |
+| LLMLingua-Enhanced 2x | 150 | 0 | 0.0000 | 0.3070 | 0.2571 | 3 254.1 | 53.3% |
+| LLMLingua-Enhanced 4x | 150 | 1 | 0.0067 | 0.2794 | 0.2559 | 1 663.0 | 76.1% |
 
 Paired F1 differences on the same 150 samples (95% CI, paired by id). This is
 the statistical form the report should use; it is much tighter than comparing
@@ -176,21 +195,32 @@ independent means:
 | Contrast | Mean ΔF1 | 95% CI | Verdict |
 | --- | ---: | --- | --- |
 | Uncompressed → Head-tail 2x | −0.0231 | [−0.057, +0.011] | **Not significant** — but this flips in §7.2 |
-| Uncompressed → Head-tail 4x | −0.0676 | [−0.107, −0.029] | Significant |
+| Uncompressed → Head-tail 4x | −0.0676 | [−0.107, −0.028] | Significant |
 | Uncompressed → LLMLingua 2x | −0.1670 | [−0.208, −0.127] | Significant |
 | Uncompressed → LLMLingua 4x | −0.2090 | [−0.250, −0.168] | Significant |
+| Uncompressed → LLMLingua-Enhanced 2x | −0.1226 | [−0.162, −0.083] | Significant |
+| Uncompressed → LLMLingua-Enhanced 4x | −0.1503 | [−0.192, −0.108] | Significant |
 | Head-tail 2x → LLMLingua 2x | −0.1440 | [−0.186, −0.102] | Significant |
 | Head-tail 4x → LLMLingua 4x | −0.1414 | [−0.183, −0.100] | Significant |
+| **LLMLingua 2x → LLMLingua-Enhanced 2x** | **+0.0444** | [+0.013, +0.076] | **Significant gain** |
+| **LLMLingua 4x → LLMLingua-Enhanced 4x** | **+0.0587** | [+0.025, +0.093] | **Significant gain** |
+| Head-tail 2x → LLMLingua-Enhanced 2x | −0.0995 | [−0.142, −0.057] | Significant loss |
+| Head-tail 4x → LLMLingua-Enhanced 4x | −0.0827 | [−0.128, −0.037] | Significant loss |
 
-> 三人樣本 id 完全一致、模型一致、無重複、無空答案。唯一介面偏差是 `docs`
-> 欄位全部為空，但三人一致，故比較仍然公平。配對檢定顯示：頭尾 2x 與不壓縮
-> **沒有顯著差異**；4x 顯著下降；LLMLingua 兩個比例都大幅顯著下降，且顯著
-> 劣於同預算的頭尾截斷。
+> 四人的樣本 id 完全一致、模型一致、無重複、無空答案。唯一介面偏差是 `docs`
+> 欄位全部為空，但四組一致，故比較仍然公平。Part 3 有 296/300 筆被切塊，Part 4
+> 則完全沒有切塊。配對檢定顯示：頭尾 2x 與不壓縮**沒有顯著差異**；4x 顯著下降；
+> LLMLingua 兩個比例都大幅顯著下降，且顯著劣於同預算的頭尾截斷。Part 4 相比
+> Part 3 顯著回升（2x +0.0444、4x +0.0587），但仍顯著低於頭尾截斷
+> （2x −0.0995、4x −0.0827），因此「切塊是唯一原因」的假設只被部分支持。
 
 ### 7.2 Same-environment rerun (single RTX 3060)
 
-`run_all.py` replays all five settings back to back on one GPU with a single
-`transformers` install, so the absolute second counts become comparable. Source:
+`run_all.py` replays all five Part 1–3 settings back to back on one GPU with a
+single `transformers` install, so the absolute second counts become comparable.
+Part 4 is deliberately excluded: its compressor needs a different model family
+that could not be loaded on this host, so no Part 4 latency number belongs in
+this table. Source:
 [results_same_machine/](./results_same_machine), documented in
 [its README](./results_same_machine/README.md).
 
@@ -236,51 +266,60 @@ so greedy decoding is not bit-exact across GPUs.
 
 | # | Severity | Issue | Suggested action |
 | --- | --- | --- | --- |
-| 1 | 🔴 High | LLMLingua's drop is far larger than published results (−38.9% / −48.6% relative F1). 296 of 300 rows were **chunked** (mean 6.3 chunks, max 13) because the phi-2 compressor has a short context, so this is not the original whole-prompt LLMLingua. | ✅ Documented in the Member 3 README, qualitative analysis, and report draft; retain it as a limitation |
-| 2 | 🟢 Resolved | Latencies come from three different machines (RTX 3060, Colab T4, Apple M5 Pro MPS), but RQ3 asks about end-to-end latency | ✅ Fixed by [run_all.py](./run_all.py); cite §7.2 for every latency number |
-| 3 | 🟢 Resolved | `make_table.py` cannot read `results_member3.json` (summary nested under `2x` / `4x`) | ✅ Script rewritten; it reads all five settings and filters Part 3 rows by `target_compression_ratio` |
+| 1 | 🟠 Medium | LLMLingua's drop is far larger than published results (−38.9% / −48.6% relative F1). 296 of 300 rows were **chunked** (mean 6.3 chunks, max 13) because the phi-2 compressor has a short context, so Part 3 is not the original whole-prompt LLMLingua. Part 4 tests this directly: with 0% chunked it still loses to truncation (−0.0995 / −0.0827), so chunking explains only 31% (2x) and 42% (4x) of the Part 2 → Part 3 gap | ✅ Documented in the Member 3 and Member 4 READMEs; the report must present the chunking explanation as *partially confirmed*, not as the sole cause |
+| 2 | 🟢 Resolved | Latencies come from four different machines (RTX 3060, Colab T4, Apple M5 Pro MPS, Colab CUDA GPU), but RQ3 asks about end-to-end latency | ✅ Fixed by [run_all.py](./run_all.py) for Parts 1–3; cite §7.2 for every latency number and state explicitly that Part 4 has no common-hardware counterpart |
+| 3 | 🟢 Resolved | `make_table.py` cannot read `results_member3.json` (summary nested under `2x` / `4x`) | ✅ [part4 make_table.py](./part4_llmlingua_enhanced/make_table.py) rewritten as a standalone reader for all seven settings and 10 paired contrasts |
 | 4 | 🟢 Resolved | 6 unfilled placeholders in [part2_truncation/README.md](./part2_truncation/README.md) (`[X]`, `[150]`, `[0.0733]`, `[版本]`) | ✅ Filled from the per-part summaries |
 | 5 | 🟠 Medium | The two runs disagree on whether the Uncompressed → Head-tail 2x drop is significant | Quote both intervals and describe the 2x loss as marginal |
 | 6 | 🟡 Low | Systematic answer-position analysis missing (planned Part 2 contribution); one qualitative example is available | Implement the systematic analysis or limit the report to the observed case |
 | 7 | 🟡 Low | `docs` field empty in all outputs, deviating from the `plan.md` interface | Record as a known deviation, or backfill with `--save-context` |
 | 8 | 🟡 Low | The committed [results_same_machine/results_table.md](./results_same_machine/results_table.md) was generated without `--rerun-dir`, so it still shows cross-machine numbers | Regenerate with `make_table.py --rerun-dir results_same_machine`, or keep the warning note at the top of the file |
-| 9 | 🟡 Low | `plan.md` still says Colab T4; actual runs are local GPU / Colab / M5 Pro | Leave `plan.md` as the original plan; describe the actual setup in the report |
+| 9 | 🟡 Low | `plan.md` still says Colab T4; actual runs are local GPU / Colab / M5 Pro / Colab CUDA | Leave `plan.md` as the original plan; describe the actual setup in the report |
 | 10 | 🟡 Low | [part2_truncation/run_truncation_result.ipynb](./part2_truncation/run_truncation_result.ipynb) (190 KB) is a Colab artifact with embedded outputs | Keep if used as evidence, otherwise drop from the zip |
+| 11 | 🟠 Medium | The Part 3 → Part 4 gain is **confounded**: compressor size (2.7B → 1.5B), question awareness, sentence-level filter, long context and 4-bit weights all change together | Report the gain as an upper bound on the chunking effect, and say so explicitly; do not attribute it to de-chunking alone |
+| 12 | 🟠 Medium | Part 4's target numbers were not met (target 0.415 / 0.380, measured 0.3070 / 0.2794 at 2x / 4x) | Present this as a negative result for *this* implementation of the paper's claim, not as evidence against LLMLingua |
+| 13 | 🟢 Resolved | The [accuracy–compression figure](./figures/accuracy_compression_tradeoff.png) previously read only `results_member1/2/3.json`, so Part 4 was absent | ✅ [Part 4 plot script](./part4_llmlingua_enhanced/plot_accuracy_compression.py) reads all five result files and both `figures/` files were regenerated |
 
 ## 9. What can be written now
 
 - **Introduction**: motivation, literature, and the three research questions — [acl_latex.tex](./acl_latex.tex) §Papers Reviewed / §Existing Methodologies can be condensed directly.
-- **Detailed Description — Method**: the shared harness, the three methods, and the comparability contract are fully documented in [README.md](./README.md), [part1](./part1_uncompressed/README.md), [part2](./part2_truncation/README.md), [part3](./part3_llmlingua/README.md).
-- **Detailed Description — Results**: the metrics in §7, the combined five-row table, the accuracy–compression figure, and the reproducible qualitative cases are ready; only the systematic position analysis is missing. Note the figure and the case file still embed the per-part F1 values (0.2626 / 0.2207), not the rerun values.
-- **Conclusion — difficulties**: the gated model, Windows console encoding crash at sample 87, the compressor context limit forcing chunking, and the Colab T4 OOM forcing chunked prefill are all real, documented difficulties.
+- **Detailed Description — Method**: the shared harness, the four parts, and the comparability contract are fully documented in [README.md](./README.md), [part1](./part1_uncompressed/README.md), [part2](./part2_truncation/README.md), [part3](./part3_llmlingua/README.md), [part4](./part4_llmlingua_enhanced/README.md).
+- **Detailed Description — Results**: the metrics in §7, the seven-row combined table with 10 paired contrasts, the accuracy–compression figure covering all seven settings, and the reproducible qualitative cases are ready; only the systematic position analysis is missing. Note the figure and the case file still embed the per-part F1 values (0.2626 / 0.2207), not the rerun values; the figure now also carries Part 4 (0.3070 / 0.2794).
+- **Conclusion — difficulties**: the gated model, Windows console encoding crash at sample 87, the compressor context limit forcing chunking, the Colab T4 OOM forcing chunked prefill, and the Windows commit-limit failure that blocked Part 4 locally are all real, documented difficulties.
 
-> 現在即可動筆：Introduction、方法、結果、五列總表、圖表、質性案例，以及困難
-> 與經驗都已有證據。技術上只剩系統化位置分析未做。注意圖表與案例檔內嵌的仍是
-> 各 part 原始跑的 F1 值（0.2626 / 0.2207）。
+> 現在即可動筆：Introduction、方法、結果、七列總表（含 10 組配對檢定）、圖表、
+> 質性案例，以及困難與經驗都已有證據。技術上只剩系統化位置分析未做。撰寫時務必
+> 注意兩點：圖表與案例檔內嵌的仍是各 part 原始跑的 F1 值（0.2626 / 0.2207），
+> 圖表已加入 Part 4；Part 3 → Part 4 的改善同時混雜了壓縮器大小、問題感知、
+> 句級過濾與 4-bit 量化，只能視為切塊效應的上界。
 
 ## 10. Suggested order of work
 
 | Order | Task | Owner | Effort |
 | ---: | --- | --- | --- |
-| 1 | ✅ Five-row combined table from all settings | M2 | Done |
+| 1 | ✅ Seven-row combined table from all settings | M4 | Done |
 | 2 | ✅ Fill the 6 placeholders in `part2_truncation/README.md` | M2 | Done |
 | 3 | ✅ Accuracy–compression figure from the 5 rows | M3 | Done |
 | 4 | ✅ Reproducible qualitative success / failure examples | M3 | Done |
 | 5 | Answer-position analysis for Part 2, or remove the claim | M2 | ~3 h |
 | 6 | ✅ RQ3 latency from the single-GPU rerun | All | Done |
-| 7 | Write the ACL final report | All | ~3 days |
-| 8 | Slides, 5-minute video, source zip, in-class PPT | All | ~2 days |
+| 7 | ✅ Add Part 4 to the accuracy–compression figure | M4 | Done |
+| 8 | Write the ACL final report | All | ~3 days |
+| 9 | Slides, 5-minute video, source zip, in-class PPT | All | ~2 days |
 
-> 建議順序：表格、圖表、案例與 RQ3 延遲口徑均已完成，現在只剩 Part 2 的位置
-> 分析與文件同步，之後即可動筆寫報告。
+> 建議順序：表格、圖表（含 Part 4）、案例與 RQ3 延遲口徑均已完成，現在只剩
+> Part 2 的位置分析與文件同步，之後即可動筆寫報告。
 
 ## 11. RQ coverage
 
 | RQ | Question | Evidence status |
 | --- | --- | --- |
-| RQ1 | How does the compression ratio affect QA accuracy? | ✅ Answerable — monotone F1 decline at 2x and 4x for both methods |
-| RQ2 | Does LLMLingua beat simple truncation at the same token budget? | ✅ Answerable — no; truncation is significantly better at both ratios (ΔF1 ≈ −0.14, CI excludes 0) |
-| RQ3 | Does compression reduce end-to-end latency after compression overhead? | ✅ Answerable from §7.2 — truncation cuts total latency 44% / 66%; LLMLingua 2x is 44% slower than uncompressed |
+| RQ1 | How does the compression ratio affect QA accuracy? | ✅ Answerable — monotone F1 decline from 1x to 2x to 4x in all three compressed families (Parts 1 → 2/3/4) |
+| RQ2 | Does LLMLingua beat simple truncation at the same token budget? | ✅ Answerable — no in any variant. Part 3 loses by ΔF1 ≈ −0.14; Part 4 recovers +0.0444 / +0.0587 over Part 3 but still trails truncation by −0.0995 / −0.0827, all CIs excluding 0 |
+| RQ3 | Does compression reduce end-to-end latency after compression overhead? | ✅ Answerable from §7.2 — truncation cuts total latency 44% / 66%; LLMLingua 2x is 44% slower than uncompressed. Part 4 is slower still (16.9 s compression per sample) but has no common-hardware rerun |
 
 > RQ1、RQ2、RQ3 現在均可完整回答；RQ3 引用同機器重跑的結果，不再受跨機器延遲
-> 不可比的限制。
+> 不可比的限制，但該重跑只涵蓋 Part 1–3。RQ2 的答案比 Part 3 時期更明確：Part 4
+> 已消除切塊並顯著改善 LLMLingua 本身（2x +0.0444、4x +0.0587），卻仍顯著低於
+> 同預算的頭尾截斷（2x −0.0995、4x −0.0827），因此「LLMLingua 勝過簡單截斷」
+> 在本專案的實作下不成立，且不能歸因於單一實作缺陷。

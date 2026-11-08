@@ -27,15 +27,17 @@ and a maximum of 13. Two distortions follow:
 Part 3 therefore scored F1 0.2626 (2x) and 0.2207 (4x), which is *worse* than the
 0.3990 / 0.3633 of plain head-and-tail truncation in Part 2 — the opposite of
 what the LLMLingua paper predicts. Part 4 tests the natural explanation: the
-loss came from chunking, not from LLMLingua itself.
+loss came from chunking, not from LLMLingua itself. The outcome of that test is
+in [Results](#results) — chunking explains part of the gap, but not all of it.
 
 > Part 3 用 `microsoft/phi-2` 壓縮，但它的上下文只有 2,048 個位置，而原始 prompt 平均
 > 6,967 個 token，所以必須先把文件切成固定的 1,400-token 區塊。Part 3 的結果檔中，
 > **300 筆有 296 筆（98.7%）被切塊**，平均 6.28 塊、最多 13 塊。這帶來兩個扭曲：
 > 每個區塊排序時看不到問題；每個區塊各自壓到自己的預算，切點由文字位置而非資訊價值決定。
 > 因此 Part 3 的 F1 只有 0.2626（2x）與 0.2207（4x），反而比 Part 2 的
-> head-and-tail 截斷（0.3990 / 0.3633）更差，與 LLMLingua 論文的預期相反。
-> Part 4 就是驗證「損失來自切塊，而不是 LLMLingua 本身」這個解釋。
+> head-and-tail 截斷（0.4065 / 0.3620）更差，與 LLMLingua 論文的預期相反。
+> Part 4 就是驗證「損失來自切塊，而不是 LLMLingua 本身」這個解釋；驗證結果見
+> [Results](#results)：切塊只解釋了部分差距，並非全部。
 
 ## What changed relative to Part 3
 
@@ -113,6 +115,7 @@ placed in the same table:
 | --- | --- |
 | `run_llmlingua_enhanced.py` | both stages: `compress` and `evaluate` |
 | `make_table.py` | standalone Part 1–4 comparison table and paired F1 contrasts |
+| `plot_accuracy_compression.py` | standalone Parts 1–4 accuracy–compression figure (writes `../figures/accuracy_compression_tradeoff.png` and `.pdf`) |
 | `requirements.txt` | dependencies for both stages |
 | `README.md` | this document |
 | `results_member4_compressed.jsonl` | written by `compress`, one row per (sample, ratio) |
@@ -123,6 +126,7 @@ placed in the same table:
 
 > `run_llmlingua_enhanced.py` 包含兩個階段（`compress` 與 `evaluate`）；
 > `make_table.py` 產生 Part 1–4 的比較總表與配對 F1 差異；`requirements.txt` 為依賴清單；
+> `plot_accuracy_compression.py` 產生 Parts 1–4 的 accuracy–compression 圖，並寫入 `figures/`；
 > `results_member4_compressed.*` 是壓縮階段的中繼檔；`results_member4.jsonl` 與
 > `results_member4.json` 是最終答案與分數。中繼檔可安全刪除，重跑 `compress` 會重新產生。
 
@@ -249,6 +253,28 @@ by paired F1 contrasts with 95% confidence intervals.
 > `results_table.csv`，可用 `--out` 指定其他位置；表中包含用於比較 Part 3 與 Part 4 的
 > Chunked count 欄，以及配對 F1 差異與 95% 信賴區間。
 
+### Accuracy–compression figure
+
+`plot_accuracy_compression.py` regenerates
+`figures/accuracy_compression_tradeoff.png` and `.pdf` from all five result files:
+
+```bash
+python part4_llmlingua_enhanced/plot_accuracy_compression.py
+python part4_llmlingua_enhanced/plot_accuracy_compression.py --out-dir /tmp/preview --dpi 200
+```
+
+It needs `matplotlib`, which the experiment environment does not require, and it
+imports no other part's module. Three series are drawn from the same seven
+settings as `make_table.py`: head-and-tail truncation, Part 3 LLMLingua (98.7%
+chunked) and Part 4 LLMLingua-Enhanced (0% chunked), with the uncompressed point
+marked once as the shared origin.
+
+> `plot_accuracy_compression.py` 由全部五個結果檔重新產生
+> `figures/accuracy_compression_tradeoff.png` 與 `.pdf`。它需要 `matplotlib`
+> （實驗環境不需要），且不 import 其他 part 的模組。圖中三條線對應
+> `make_table.py` 的同一批七個設定：頭尾截斷、Part 3 LLMLingua（98.7% 有切塊）
+> 與 Part 4 LLMLingua-Enhanced（0% 切塊），不壓縮基準只標一個共用起點。
+
 ## Output files and schema
 
 `results_member4_compressed.jsonl` — one JSON object per line with `id`,
@@ -283,67 +309,159 @@ next to Part 1–3 rows in the combined table.
 > `chunked_count` 等）與 `results` 逐筆結果；`chunked_count` 應為 0，正是這一版要證明的重點。
 > `mean_prompt_tokens` 以目標模型 tokenizer 量度，可直接與 Part 1–3 並列。
 
-## Expected result
+## Results
 
-The hypothesis is that removing chunking restores the ordering predicted by the
-LLMLingua paper. Target values at 150 samples:
+`results_member4.json` holds 300 rows (150 samples × 2 ratios) from a Colab CUDA
+GPU: the compressor was loaded in 4-bit NF4, the target model in `float16`.
+Chunking is gone in every row — `chunked_count = 0` and
+`max_num_compression_chunks = 1`, against 148/150 chunked rows in Part 3
+(mean 6.28 chunks, max 13). The compression stage was written separately, so
+`results_member4_compressed.json` records the same audit fields
+(`compressor_load_in_4bit = true`, `compressor_max_position_embeddings = 32768`,
+`rank_method = longllmlingua`, `condition_on_question = true`).
 
-| Setting | Part 2 head-and-tail F1 | Part 3 LLMLingua F1 | Part 4 target F1 |
-| --- | --- | --- | --- |
-| 2x | 0.3990 | 0.2626 | ≈ 0.415 |
-| 4x | 0.3633 | 0.2207 | ≈ 0.380 |
+All seven settings, generated from the committed JSON files by
+[`make_table.py`](./make_table.py) rather than re-typed by hand:
 
-(Part 2 / Part 3 values above are from the same-environment rerun in
-`results_same_machine/`.)
+| Method | n | EM | F1 | F1 sd | Mean prompt tokens | Token reduction | Chunked count | Compress (s) | Generate (s) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Uncompressed (Part 1) | 150 | 0.0933 | 0.4296 | 0.2910 | 6 966.8 | — | — | 0.000 | 4.63 |
+| Head-tail 2x (Part 2) | 150 | 0.0733 | 0.4065 | 0.2931 | 3 523.1 | 49.4% | — | 0.019 | 5.79 |
+| Head-tail 4x (Part 2) | 150 | 0.0667 | 0.3620 | 0.2978 | 1 801.2 | 74.1% | — | 0.018 | 3.52 |
+| LLMLingua 2x (Part 3) | 150 | 0.0067 | 0.2626 | 0.2675 | 3 308.1 | 52.5% | 148/150 | 10.816 | 3.02 |
+| LLMLingua 4x (Part 3) | 150 | 0.0133 | 0.2207 | 0.2396 | 1 961.6 | 71.8% | 148/150 | 9.846 | 2.13 |
+| **LLMLingua-Enhanced 2x (Part 4)** | 150 | 0.0000 | **0.3070** | 0.2571 | 3 254.1 | 53.3% | 0/150 | 16.913 | 2.69 |
+| **LLMLingua-Enhanced 4x (Part 4)** | 150 | 0.0067 | **0.2794** | 0.2559 | 1 663.0 | 76.1% | 0/150 | 14.654 | 1.82 |
 
-These are targets, not results. Until `results_member4.json` exists this folder
-makes no claim about the outcome; if the measured F1 stays below the Part 2
-numbers, the chunking explanation is falsified and the remaining suspects are
-the sentence-level filter and the compressor's own ranking quality.
+Token reduction is measured against the Part 1 mean of 6 966.8 prompt tokens.
+The achieved *document* compression ratio is 2.144 at 2x and 4.133 at 4x, i.e.
+the requested budgets are met without chunking. Latencies in this table were
+produced on four different machines (Part 4 on Colab), so only the quality
+columns and the token counts may be compared across parts.
 
-> 假設是：取消切塊之後，結果會回到 LLMLingua 論文預期的排序。150 筆樣本的目標值為
-> 2x ≈ 0.415、4x ≈ 0.380（對照 Part 2 的 0.3990 / 0.3633 與 Part 3 的 0.2626 / 0.2207）。
-> 這些是**目標**而非結果：在 `results_member4.json` 產生之前，本資料夾不對結論作任何宣稱。
-> 若實測 F1 仍低於 Part 2，就代表切塊解釋被否證，剩下的疑點是句級過濾與壓縮器本身的排序品質。
+Paired F1 differences on the same 150 samples (second minus first, paired by id,
+95% CI = mean ± 1.96 SE):
+
+| Contrast | Mean ΔF1 | 95% CI | Verdict |
+| --- | ---: | --- | --- |
+| Uncompressed → Head-tail 2x | −0.0231 | [−0.057, +0.011] | Not significant |
+| Uncompressed → Head-tail 4x | −0.0676 | [−0.107, −0.028] | Significant loss |
+| Uncompressed → LLMLingua-Enhanced 2x | −0.1226 | [−0.162, −0.083] | Significant loss |
+| Uncompressed → LLMLingua-Enhanced 4x | −0.1503 | [−0.192, −0.108] | Significant loss |
+| Head-tail 2x → LLMLingua 2x | −0.1440 | [−0.186, −0.102] | Significant loss |
+| Head-tail 4x → LLMLingua 4x | −0.1414 | [−0.183, −0.100] | Significant loss |
+| **LLMLingua 2x → LLMLingua-Enhanced 2x** | **+0.0444** | [+0.013, +0.076] | **Significant gain** |
+| **LLMLingua 4x → LLMLingua-Enhanced 4x** | **+0.0587** | [+0.025, +0.093] | **Significant gain** |
+| Head-tail 2x → LLMLingua-Enhanced 2x | −0.0995 | [−0.142, −0.057] | Significant loss |
+| Head-tail 4x → LLMLingua-Enhanced 4x | −0.0827 | [−0.128, −0.037] | Significant loss |
+
+Targets against measurements (Part 2 / Part 3 columns are the per-part runs; the
+same-environment rerun gives 0.3990 / 0.3633 for Part 2 and 0.2569 / 0.2221 for
+Part 3):
+
+| Setting | Part 2 head-and-tail F1 | Part 3 LLMLingua F1 | Part 4 target F1 | Part 4 measured F1 |
+| --- | ---: | ---: | ---: | ---: |
+| 2x | 0.4065 | 0.2626 | ≈ 0.415 | **0.3070** |
+| 4x | 0.3620 | 0.2207 | ≈ 0.380 | **0.2794** |
+
+What this means:
+
+1. **The chunking explanation holds, partially.** Removing chunking and adding
+   question-aware ranking lifts F1 by 0.0444 at 2x (+16.9% relative) and 0.0587
+   at 4x (+26.6% relative), both with confidence intervals that exclude zero.
+   Chunking was a real defect, not a measurement artefact.
+2. **It is not the whole gap.** Head-and-tail truncation is still significantly
+   better at both ratios, by 0.0995 and 0.0827. LLMLingua-Enhanced closes roughly
+   a third of the distance to Part 2 at 2x and about two fifths at 4x, so the
+   ordering predicted by the original paper still does not appear under this
+   implementation. The report must state this as a negative result for *this
+   implementation*, not for LLMLingua.
+3. **Compression cost went up, quality cost went down.** Part 4 spends 16.9 s /
+   14.7 s per sample inside the compressor because `longllmlingua` with the
+   sentence-level filter runs one forward pass per sentence. The generation stage
+   is the fastest of all seven settings (2.69 s / 1.82 s) because the compressed
+   prompt is genuinely shorter at the same nominal ratio, but the two stages ran
+   on different hardware, so this is not a like-for-like latency comparison.
+4. **EM is not usable at this sample size.** 0/150 hits at 2x and 1/150 at 4x;
+   with ≤2 hits the difference is noise, so F1 is the metric to report.
+
+> `results_member4.json` 有 300 筆（150 樣本 × 2 個壓縮率），在 Colab 的 CUDA GPU 上產生：
+> 壓縮器以 4-bit NF4 載入，目標模型為 `float16`。所有列都不再切塊
+> （`chunked_count = 0`、`max_num_compression_chunks = 1`），對比 Part 3 的 148/150
+> 有切塊（平均 6.28 塊、最多 13 塊）。七個設定的完整表由 `make_table.py` 直接從各結果
+> JSON 產生，非人手抄錄：Part 4 的 F1 為 0.3070（2x）與 0.2794（4x），
+> prompt token 分別為 3,254.1 與 1,663.0，實得文章壓縮比 2.144 與 4.133。
+>
+> 配對檢定（同一批 150 筆，以 id 配對）顯示：相對 Part 3，Part 4 的 F1 顯著提升
+> +0.0444（2x，相對 +16.9%）與 +0.0587（4x，相對 +26.6%），信賴區間不含 0；但相對
+> Part 2 的頭尾截斷仍然顯著較差（−0.0995 / −0.0827）。也就是說：**切塊確實是缺陷，
+> 但只解釋部分差距** —— 在 2x 約縮小三分之一、4x 約縮小五分之二的落差，原論文預期的
+> 排序在本實作下仍未出現，報告必須寫成「本實作的負面結果」，而非「LLMLingua 較差」。
+> 另外 Part 4 的壓縮延遲每筆 16.9 秒（2x）與 14.7 秒（4x），是七個設定中最高的，
+> 因為 `longllmlingua` 搭配句級過濾會逐句做前向傳播；生成階段則最短（2.69 / 1.82 秒），
+> 但兩階段來自不同硬體，不能當作同條件延遲比較。EM 在 2x 為 0/150、4x 為 1/150，
+> 命中數太少屬雜訊，應以 F1 為主要指標。
 
 ## Cost
 
-Approximate local cost on an RTX 3060 12 GB, 150 samples x 2 ratios:
+Measured on the Colab run that produced `results_member4.json` (compressor in
+4-bit NF4, target model in `float16`, 150 samples × 2 ratios):
 
-- download: about 3.1 GB for the compressor weights;
-- compression: dominated by the per-sentence perplexity pass; expect roughly
-  20-40 s per (sample, ratio), i.e. 2-4 hours for the full stage;
-- evaluation: about 3 s per row with the 3B target model, i.e. 15-20 minutes.
+- compressor weights: about 3.1 GB to download;
+- compression: 16.9 s per (sample, ratio) at 2x and 14.7 s at 4x, i.e. roughly an
+  hour of wall-clock time for the 300-row stage;
+- evaluation: 2.7 s / 1.8 s of generation per row, i.e. about ten minutes for the
+  stage.
 
-The compressor and target model are never resident at the same time, so 12 GB of
-VRAM is enough for both stages. Compression runs comfortably in 8 GB.
+The two stages never hold both models at once, so 12–16 GB of VRAM is enough;
+with `--load-in-4bit` the compressor alone fits comfortably in 8 GB. A local host
+must additionally be able to *commit* the 2.9 GB weight shard in RAM: the Windows
+machine used for Parts 1–3 could not, which is why this stage ran on Colab (see
+[Troubleshooting](#troubleshooting)).
 
-> 在 RTX 3060 12 GB 上，150 筆 × 2 個壓縮率的大約成本：壓縮器權重下載約 3.1 GB；
-> 壓縮階段主要受逐句困惑度計算限制，每組（樣本, 壓縮率）約 20-40 秒，全階段約 2-4 小時；
-> 評估階段每筆約 3 秒，合計 15-20 分鐘。壓縮器與目標模型不同時駐留，12 GB VRAM 足夠，
-> 壓縮階段 8 GB 已可運行。
+> 上列為產生 `results_member4.json` 的 Colab 實測成本（壓縮器 4-bit NF4、目標模型
+> `float16`、150 樣本 × 2 壓縮率）：壓縮器權重約 3.1 GB 下載；壓縮階段每組
+> （樣本, 壓縮率）16.9 秒（2x）與 14.7 秒（4x），300 列約一小時；評估階段每列生成
+> 2.7 / 1.8 秒，整個階段約十分鐘。兩個階段不同時駐留，12–16 GB VRAM 足夠，
+> `--load-in-4bit` 時壓縮器單獨可在 8 GB 內運行。本機另外需要能把 2.9 GB 的權重分片
+> 放進記憶體，Part 1–3 使用的 Windows 機器做不到，因此本階段改在 Colab 執行。
 
 ## Limitations
 
-- The comparison isolates one variable (the compressor). Part 3 and Part 4 use
-  different compressor families, so a difference in F1 cannot be attributed to
-  chunking alone; the ablation flag `--no-question-aware` narrows this down but
-  does not remove it.
-- `longllmlingua` with the sentence filter runs one forward pass per sentence,
-  so compression latency is higher than Part 3 by design. Latency is reported
-  for transparency, not as a claim of efficiency.
-- 4x compression leaves roughly 1,740 target tokens out of 6,967; answer quality
-  on the hardest multi-hop samples may still be limited by the target model, as
-  in Parts 1–3.
-- Numbers are only comparable with the Part 1–3 rows produced in the same
-  environment; see `results_same_machine/` for the latency baseline.
+- The comparison isolates one variable (the compressor), yet Part 3 and Part 4
+  differ in more than chunking: compressor size (2.7B vs 1.5B), question-aware
+  ranking, the sentence-level filter and 4-bit compressor weights all changed at
+  once. The +0.0444 / +0.0587 gain therefore cannot be attributed to de-chunking
+  alone; only a same-compressor run with and without chunking would settle it.
+  The `--no-question-aware` flag isolates one of these factors, not all of them.
+- F1 stays 0.0995 (2x) and 0.0827 (4x) below plain head-and-tail truncation and
+  0.1226 / 0.1503 below the uncompressed baseline, so the ordering predicted by
+  the LLMLingua paper still does not appear. Report this as a negative result for
+  *this implementation*, not as evidence that LLMLingua is worse than truncation.
+- `longllmlingua` with the sentence filter runs one forward pass per sentence, so
+  compression costs 16.9 s / 14.7 s per sample, the highest of all seven settings.
+  Latency is reported for transparency, not as a claim of efficiency, and Part 4
+  has no same-environment rerun, so its seconds are not comparable with
+  `results_same_machine/`.
+- 4x compression keeps 1 663 target tokens out of 6 967; the hardest multi-hop
+  samples are still limited by the 3B target model, as in Parts 1–3.
+- EM is 0/150 at 2x and 1/150 at 4x. With at most two hits the difference is
+  noise, so F1 is the primary metric and EM must not be read as a ratio effect.
+- The documented interface `{… docs …}` is not met: `docs` is null in Part 4's
+  rows, exactly as in Parts 1–3, so comparability is preserved.
 
-> 本實驗只隔離一個變因（壓縮器）。Part 3 與 Part 4 使用不同家族的壓縮器，因此 F1 差異
-> 不能完全歸因於切塊；`--no-question-aware` 消融可收窄範圍，但無法完全排除。
-> `longllmlingua` 搭配句級過濾會逐句做一次前向傳播，壓縮延遲本來就比 Part 3 高，
-> 延遲只用於透明揭露，並非效率主張。4x 壓縮後約餘 1,740 個目標模型 token（原始 6,967），
-> 最難的多跳樣本仍受目標模型能力限制。數字只可與同環境產生的 Part 1–3 結果比較，
-> 延遲基準見 `results_same_machine/`。
+> 本實驗只隔離一個變因（壓縮器），但 Part 3 與 Part 4 的差異不只有切塊：壓縮器大小
+> （2.7B 對 1.5B）、問題感知排序、句級過濾與 4-bit 權重都同時改變，因此
+> +0.0444 / +0.0587 的提升不能全歸因於取消切塊；只有「同一壓縮器、開關切塊」的實驗
+> 才能定論，`--no-question-aware` 只隔離其中一項。Part 4 的 F1 仍比頭尾截斷低
+> 0.0995（2x）與 0.0827（4x），比不壓縮低 0.1226 / 0.1503，原論文預期的排序仍未出現，
+> 應寫成「本實作的負面結果」，而非「LLMLingua 較差」。`longllmlingua` 搭配句級過濾
+> 會逐句做前向傳播，每筆壓縮成本 16.9 秒（2x）與 14.7 秒（4x），是七個設定中最高的；
+> 延遲僅供透明揭露，且 Part 4 沒有同環境重跑，秒數不能與 `results_same_machine/`
+> 相比。4x 壓縮後保留 1,663 個目標模型 token（原始 6,967），最難的多跳樣本仍受 3B
+> 模型能力限制。EM 為 2x 0/150、4x 1/150，命中數至多兩次屬雜訊，應以 F1 為主要指標。
+> `docs` 欄位在 Part 4 為 null（與 Part 1–3 一致），因此 `plan.md` 宣告的介面仍未滿足，
+> 但三部分一致，比較仍然公平。
 
 ## Troubleshooting
 

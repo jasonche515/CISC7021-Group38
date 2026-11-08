@@ -33,6 +33,8 @@ SOURCES = [
 CONTRASTS = [
     ("Uncompressed", "Head-tail 2x"),
     ("Uncompressed", "Head-tail 4x"),
+    ("Uncompressed", "LLMLingua-Enhanced 2x"),
+    ("Uncompressed", "LLMLingua-Enhanced 4x"),
     ("Head-tail 2x", "LLMLingua 2x"),
     ("Head-tail 4x", "LLMLingua 4x"),
     ("LLMLingua 2x", "LLMLingua-Enhanced 2x"),
@@ -164,7 +166,9 @@ def main():
     table, csv_rows = build_table(data)
     print(table)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(table + "\n", encoding="utf-8")
+    # newline="\n" keeps the generated table LF-only on Windows too
+    with open(args.out, "w", newline="\n", encoding="utf-8") as fh:
+        fh.write(table + "\n")
     csv_path = args.out.with_suffix(".csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=list(csv_rows[0].keys()))
