@@ -1,0 +1,19 @@
+# Single environment for both stages. Part 3 had to pin transformers==4.38.2
+# for the compressor and then upgrade for the target model; Part 4 runs on a
+# current transformers instead, because run_llmlingua_enhanced.py ships its own
+# DynamicCache <-> legacy past_key_values shim that llmlingua 0.2.2 needs.
+llmlingua==0.2.2
+transformers>=5.0
+torch>=2.2
+accelerate>=0.27
+tiktoken>=0.5
+sentencepiece>=0.1.99
+nltk>=3.9
+protobuf>=3.20
+# Only needed for --load-in-4bit (a quarter of the weight memory of float16).
+bitsandbytes>=0.43
+
+# llmlingua pulls in the full dependency set of its optional rankers. Installing
+# only the compressor is enough for rank_method="longllmlingua":
+#   pip install --no-deps llmlingua==0.2.2
+# then install the packages listed above.
