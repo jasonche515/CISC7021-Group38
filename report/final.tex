@@ -1,0 +1,433 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+\usepackage[a4paper,top=1.75cm,bottom=2.0cm,left=1.75cm,right=1.75cm,columnsep=0.65cm]{geometry}
+\usepackage{times}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{7pt plus 2pt minus 2pt}
+\setlength{\intextsep}{7pt plus 2pt minus 2pt}
+\setlist{nosep,leftmargin=1.4em}
+\titleformat{\section}{\large\bfseries}{\thesection}{0.55em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.45em}{}
+\titlespacing*{\section}{0pt}{1.4ex plus .4ex}{0.7ex}
+\titlespacing*{\subsection}{0pt}{1.0ex plus .3ex}{0.4ex}
+
+\title{Reproducing LLMLingua: Evaluating Accuracy--Efficiency Trade-offs in Long-Context Prompt Compression}
+
+\author{
+CHEN IAT HONG \quad MC654102\\
+KONG KIN MENG \quad MC652817\\
+CHE CHON HONG \quad MC551841\\
+\textit{University of Macau}\\
+\textit{CISC7021 Applied Natural Language Processing -- Course Project Final Report}
+}
+
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-0.8cm}
+
+% ===========================================================================
+% DRAFT STATUS: Abstract and Section 1 are written. Everywhere else the body
+% is still the placeholder line
+%     (text text text)
+% with a "% TODO" note describing what must be written there.
+% ===========================================================================
+
+\begin{abstract}
+Long prompts improve retrieval-augmented and in-context question answering, but
+they also raise memory use, latency, and cost, and models may ignore information
+placed in the middle of a long context. Prompt compression attacks both problems
+without retraining the target model, yet its reported gains are usually measured
+with proprietary LLMs and reported as token reductions rather than end-to-end
+cost. We reproduce and evaluate four prompt settings on the full 150-example
+LongBench \texttt{multifieldqa\_en} split with a 3B open-weight target model:
+an uncompressed baseline, head-and-tail truncation, LLMLingua, and a
+question-aware long-context variant of LLMLingua, the last two at nominal $2\times$
+and $4\times$ compression. All settings share one fixed sample index, one prompt
+template, and one Exact Match / token-F1 implementation. Accuracy decreases
+monotonically with the compression ratio in every compressed family. Truncation
+keeps most of the baseline quality (F1 0.4065 and 0.3620 against 0.4296), whereas
+LLMLingua is markedly worse (0.2626 and 0.2207); replacing its chunked Phi-2
+compressor with a single-pass question-aware compressor recovers part of the loss
+(0.3070 and 0.2794) but does not change the ranking. In a same-machine rerun of
+the first three settings, only truncation actually reduces end-to-end latency, by
+44\% and 66\%, while LLMLingua at $2\times$ is 44\% slower than the uncompressed
+baseline despite removing half of the prompt tokens.
+\end{abstract}
+
+% ---------------------------------------------------------------------------
+\section{Introduction}
+
+\subsection{Motivation}
+
+Large language models (LLMs) are now routinely asked to answer a question from
+several retrieved documents, to summarise a long article, or to learn a task from
+many in-context demonstrations. Each of these settings pushes thousands of tokens
+into a single prompt. The cost is not only monetary: a longer prompt occupies more
+GPU memory, needs more prefill computation, and therefore increases the
+time-to-first-token and the end-to-end latency of the serving system. Retrieved
+context is also repetitive. Documents overlap with one another and with the
+instruction, so a non-trivial fraction of the prompt carries little new
+information for the question at hand. Finally, a large advertised context window
+does not imply that the model uses it uniformly: \citet{liu-etal-2024-lost} show
+that accuracy is typically highest when the relevant passage sits at the
+beginning or the end of the context and drops when it sits in the middle.
+
+Prompt compression addresses these issues by shortening the text that reaches the
+target model while trying to preserve the information the task needs. Unlike
+model compression or distillation, it requires neither retraining nor access to
+the target model's weights, so the same compressor can be placed in front of any
+open or proprietary endpoint. This makes it an attractive engineering option for
+resource-constrained deployments, and it is the reason a family of
+perplexity-based methods has been developed around it.
+
+What is missing is not a new method but a clean measurement. The headline numbers
+in this literature are typically obtained with proprietary target models and are
+reported as reductions in input tokens. Token reduction, however, is only one side
+of the ledger: the compressor itself is a language model that must run on the same
+hardware, and its cost can exceed the generation time it saves. It is therefore
+unclear whether the accuracy--efficiency trade-off reported for large proprietary
+models still holds for a smaller open-weight model that a student project, or a
+small deployment, can actually afford to run---and whether the compressor pays for
+itself once its own latency is counted.
+
+\subsection{Literature Review}
+
+\citet{li-etal-2025-prompt-survey} organise the field and separate methods that
+delete or rewrite visible prompt tokens from methods that encode the prompt into
+learned continuous representations. The former are directly applicable to any
+frozen model and are the family studied here.
+
+Selective Context \citep{li-etal-2023-compressing} removes lexical units whose
+self-information is low, showing that natural-language prompts contain
+substantial redundancy. Its importance estimate is not conditioned on the
+downstream question, so it may discard details that are predictable in general but
+essential for a specific query.
+
+LLMLingua \citep{jiang-etal-2023-llmlingua} introduces a coarse-to-fine framework
+in which a small language model scores prompt components and individual tokens.
+A budget controller first allocates different compression budgets to instructions,
+demonstrations, and questions; iterative token-level compression then removes
+low-value tokens in several passes, and distribution alignment reduces the gap
+between the compressor and the target model. Reported gains reach roughly
+$20\times$ compression with limited quality loss on some tasks.
+
+LongLLMLingua \citep{jiang-etal-2024-longllmlingua} extends the idea to
+long-context question answering, where useful evidence is sparse and
+question-dependent. It adds question-aware document ranking, contrastive
+perplexity, dynamic budget allocation, document reordering, and subsequence
+recovery, and reports large token and cost savings on a multi-document Natural
+Questions variant \citep{kwiatkowski-etal-2019-natural}.
+
+Two evaluation resources complete the picture. \citet{liu-etal-2024-lost}
+motivate the accuracy side of our measurement by documenting position bias, and
+LongBench \citep{bai-etal-2024-longbench} supplies the long-context
+question-answering data we use, in a format that requires no additional
+preprocessing.
+
+\subsection{Research Questions}
+
+We ask three questions about a small, reproducible configuration:
+
+\begin{itemize}
+    \item \textbf{RQ1:} How does the compression ratio affect question-answering
+    accuracy?
+    \item \textbf{RQ2:} At the same input-token budget, does LLMLingua outperform
+    simple truncation?
+    \item \textbf{RQ3:} Does compression reduce end-to-end latency once the
+    compression overhead is included?
+\end{itemize}
+
+\subsection{Contributions}
+
+\begin{itemize}
+    \item A shared evaluation harness, used unchanged by all four experiments: one
+    fixed index of the 150 official \texttt{multifieldqa\_en} test examples, one
+    chat-template prompt renderer, one set of Exact Match / token-F1
+    implementations, and one configuration module.
+    \item Four compression settings implemented end to end and run to completion on
+    the full split: uncompressed, head-and-tail truncation, LLMLingua, and a
+    question-aware long-context variant of LLMLingua, the latter two at nominal
+    $2\times$ and $4\times$ compression (seven result settings in total).
+    \item A paired, per-sample comparison with 95\% confidence intervals, which is
+    more informative than comparing leaderboard averages and lets us state
+    explicitly which differences survive noise.
+    \item A single-machine rerun of the five uncompressed/truncation/LLMLingua
+    settings, so that the latency question (RQ3) is answered on one GPU rather
+    than by comparing four different machines.
+    \item A negative result with a diagnosed cause: LLMLingua loses to plain
+    truncation at an equal token budget, chunking explains only part of that gap,
+    and the residual gap persists after the chunking defect is removed.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\section{Detailed Description}
+(text text text)
+
+\subsection{Task and Dataset}
+(text text text)
+
+% TODO: LongBench multifieldqa_en; question + retrieved documents + gold answers;
+% why all 150 official test examples were kept; how the fixed index is stored in
+% shared/samples.json (seed 42).
+
+\subsection{Models and Hardware}
+(text text text)
+
+% TODO: target model Llama-3.2-3B-Instruct (gated id vs unsloth mirror); 128k
+% native context and why a 32k prompt budget was self-imposed; compressor models
+% (microsoft/phi-2 in Part 3; Qwen2.5-1.5B-Instruct in Part 4); the four machines
+% and the single-machine rerun used for latency.
+
+\subsection{Shared Evaluation Harness}
+(text text text)
+
+% TODO: one contract for all members — files, what is frozen, what a member may
+% change. Expand on the four sub-blocks below.
+
+\subsubsection{Sample Index}
+(text text text)
+
+% TODO: 150 ids, order, seed, why cross-part comparability depends on it.
+
+\subsubsection{Prompt Template}
+(text text text)
+
+% TODO: the chat template and instruction/context formatting; why prompt_tokens
+% counts the chat-templated prompt; the token-budget fallback.
+
+\subsubsection{Metrics}
+(text text text)
+
+% TODO: SQuAD-style Exact Match and token-level F1; mean over 150 samples; what
+% EM/F1 ignore (e.g. LaTeX fragments, truncation at 64 new tokens).
+
+\subsubsection{Configuration}
+(text text text)
+
+% TODO: greedy decoding, max_new_tokens = 64, MAX_PROMPT_TOKENS, dtype, seeds.
+
+\subsection{Compared Methods}
+(text text text)
+
+% TODO: one paragraph per method plus the target ratio definitions (document
+% ratio vs whole-prompt ratio).
+
+\subsubsection{Part 1: Uncompressed Baseline}
+(text text text)
+
+% TODO: mechanism, parameters, expected role as reference.
+
+\subsubsection{Part 2: Head-and-Tail Truncation}
+(text text text)
+
+% TODO: budget b = round(n / r); head_frac = 0.5; instruction and question are
+% never truncated; why this is a non-semantic baseline.
+
+\subsubsection{Part 3: LLMLingua}
+(text text text)
+
+% TODO: coarse-to-fine, iterative token filtering, rates 0.5 / 0.25, phi-2 as
+% compressor, measurement tokenizer.
+
+\subsubsection{Part 4: LLMLingua-Enhanced}
+(text text text)
+
+% TODO: what changed relative to Part 3 (single-pass Qwen2.5-1.5B-Instruct,
+% question-aware ranking, sentence-level filter), and why the improvement cannot
+% be attributed to a single factor.
+
+\subsection{Implementation}
+(text text text)
+
+% TODO: how the pipeline is structured end to end; the three sub-blocks below.
+
+\subsubsection{Two-Stage Compress and Evaluate Pipeline}
+(text text text)
+
+% TODO: compressor and target model never co-resident; two environments because
+% of the transformers version conflict; JSONL checkpoints and resume.
+
+\subsubsection{Chunked Compression and Chunked Prefill}
+(text text text)
+
+% TODO: 1,400-token compressor chunks in Part 3 (296/300 rows chunked); no
+% chunking in Part 4; --chunk-size / --chunk-threshold prefill in Part 2; how
+% chunking is recorded per row.
+
+\subsubsection{Memory and Out-of-Memory Handling}
+(text text text)
+
+% TODO: Colab T4 limits, OOM retry with halved prompt budget, skipped-and-retried
+% rows, oom_skipped_ids.
+
+\subsubsection{System Overview}
+(text text text)
+
+% TODO: insert the pipeline / component diagram here (figure with caption and
+% label). One figure covering data -> (compression) -> generation -> scoring.
+
+\subsection{Experimental Setup}
+(text text text)
+
+% TODO: which settings were run, on which machine, at which ratio, when, and
+% which result file each row comes from.
+
+\subsection{Evaluation Protocol}
+(text text text)
+
+% TODO: primary metrics; paired-by-id F1 differences; 95% CI = mean +/- 1.96 SE;
+% how "significant" is decided; which contrasts are reported; why per-part
+% latencies are not compared across machines.
+
+% ---------------------------------------------------------------------------
+\section{Results and Evaluation}
+(text text text)
+
+\subsection{Main Results}
+(text text text)
+
+% TODO: the seven-setting table (uncompressed, head-tail 2x/4x, LLMLingua
+% 2x/4x, LLMLingua-enhanced 2x/4x): n, EM, F1, prompt tokens, token reduction,
+% compression / generation / total latency. Reference part4 results_table.md.
+
+\subsection{RQ1: Accuracy versus Compression Ratio}
+(text text text)
+
+% TODO: monotone F1 decline from 1x to 2x to 4x in all three compressed families;
+% include the accuracy--compression figure (figures/accuracy_compression_tradeoff).
+
+\subsection{RQ2: LLMLingua versus Truncation at Equal Token Budget}
+(text text text)
+
+% TODO: paired contrasts — LLMLingua loses to truncation (-0.1440 / -0.1414);
+% enhanced LLMLingua improves over LLMLingua (+0.0444 / +0.0587) but still loses
+% to truncation (-0.0995 / -0.0827); all CIs exclude zero.
+
+\subsection{RQ3: End-to-End Latency}
+(text text text)
+
+% TODO: use the single-machine rerun only; truncation cuts total latency by
+% 43.6% / 65.7%; LLMLingua 2x is 43.9% slower than uncompressed once compression
+% is charged; Part 4 has no common-hardware rerun (state this explicitly).
+
+\subsection{Qualitative Analysis}
+(text text text)
+
+% TODO: reproducible success and failure cases from
+% part3_llmlingua/qualitative_cases.md; what compression removes that the
+% question needed; what survives intact.
+
+\subsection{Discussion}
+(text text text)
+
+% TODO: why perplexity-based token removal underperforms a dumb baseline here
+% (fragmentation, names/numbers, 3B target model, short prompts, question not
+% used for budget allocation); what this implies about the paper's claims.
+
+\subsection{Threats to Validity}
+(text text text)
+
+% TODO: per-part hardware differences; stale results_same_machine export;
+% differing verdict for Uncompressed -> Head-tail 2x between runs; single
+% dataset, single model, single head_frac; Part 4 not in the rerun.
+
+% ---------------------------------------------------------------------------
+\section{Conclusion}
+(text text text)
+
+\subsection{Summary of Findings}
+(text text text)
+
+% TODO: answer RQ1--RQ3 in three sentences, each with its number.
+
+\subsection{Lessons Learned}
+(text text text)
+
+% TODO: about reproduction, about evaluation contracts, about measuring
+% end-to-end cost rather than token counts.
+
+\subsection{Problems and Difficulties}
+(text text text)
+
+% TODO: gated model access; Windows console encoding crash at sample 87; the
+% compressor context limit forcing chunking; Colab T4 OOM forcing chunked
+% prefill; the Windows commit-limit failure that blocked Part 4 locally.
+
+\subsection{Limitations}
+(text text text)
+
+% TODO: scope and measurement limits, one bullet per limitation.
+
+\subsection{Future Work}
+(text text text)
+
+% TODO: answer-position failure analysis; LongLLMLingua-style reordering;
+% larger target models; more ratios and datasets; latency measurement on one
+% common GPU for all four parts.
+
+% ---------------------------------------------------------------------------
+\section{Use of Generative AI}
+(text text text)
+
+% TODO: which tools were used for what (literature organisation, drafting,
+% formatting, code assistance), and how numbers and claims were verified.
+
+% ---------------------------------------------------------------------------
+% References: carried over from report/acl_latex.tex. Keep only the entries that
+% are actually cited, and add any new ones in the same format.
+\begin{thebibliography}{9}
+
+\bibitem[Bai et al.(2024)]{bai-etal-2024-longbench}
+Yushi Bai, Xin Lv, Jiajie Zhang, Hongchang Lyu, Jiankai Tang, Zhidian Huang, Zhengxiao Du, Xiao Liu, Aohan Zeng, Lei Hou, Yuxiao Dong, Jie Tang, and Juanzi Li. 2024.
+\newblock LongBench: A bilingual, multitask benchmark for long context understanding.
+\newblock In \emph{Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)}, pages 3119--3137.
+
+\bibitem[Jiang et al.(2023)]{jiang-etal-2023-llmlingua}
+Huiqiang Jiang, Qianhui Wu, Chin-Yew Lin, Yuqing Yang, and Lili Qiu. 2023.
+\newblock LLMLingua: Compressing prompts for accelerated inference of large language models.
+\newblock In \emph{Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing}, pages 13358--13376.
+
+\bibitem[Jiang et al.(2024)]{jiang-etal-2024-longllmlingua}
+Huiqiang Jiang, Qianhui Wu, Xufang Luo, Dongsheng Li, Chin-Yew Lin, Yuqing Yang, and Lili Qiu. 2024.
+\newblock LongLLMLingua: Accelerating and enhancing LLMs in long context scenarios via prompt compression.
+\newblock In \emph{Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)}, pages 1658--1677.
+
+\bibitem[Kwiatkowski et al.(2019)]{kwiatkowski-etal-2019-natural}
+Tom Kwiatkowski, Jennimaria Palomaki, Olivia Redfield, Michael Collins, Ankur Parikh, Chris Alberti, Danielle Epstein, Illia Polosukhin, Jacob Devlin, Kenton Lee, Kristina Toutanova, Llion Jones, Matthew Kelcey, Ming-Wei Chang, Andrew M. Dai, Jakob Uszkoreit, Quoc Le, and Slav Petrov. 2019.
+\newblock Natural Questions: A benchmark for question answering research.
+\newblock \emph{Transactions of the Association for Computational Linguistics}, 7:453--466.
+
+\bibitem[Li et al.(2023)]{li-etal-2023-compressing}
+Yucheng Li, Bo Dong, Frank Guerin, and Chenghua Lin. 2023.
+\newblock Compressing context to enhance inference efficiency of large language models.
+\newblock In \emph{Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing}, pages 6342--6353.
+
+\bibitem[Li et al.(2025)]{li-etal-2025-prompt-survey}
+Zongqian Li, Yinhong Liu, Yixuan Su, and Nigel Collier. 2025.
+\newblock Prompt compression for large language models: A survey.
+\newblock In \emph{Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 1: Long Papers)}, pages 5807--5823.
+
+\bibitem[Liu et al.(2024)]{liu-etal-2024-lost}
+Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, and Percy Liang. 2024.
+\newblock Lost in the middle: How language models use long contexts.
+\newblock \emph{Transactions of the Association for Computational Linguistics}, 12:157--173.
+
+\end{thebibliography}
+
+\end{document}
