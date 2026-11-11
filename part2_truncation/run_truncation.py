@@ -41,6 +41,40 @@ def head_tail_truncate(tokenizer, docs, ratio, head_frac):
     text = tokenizer.decode(kept, skip_special_tokens=True)
     return text, n_orig, len(kept)
 
+def locate_answer(tokenizer, docs, answers, n_orig, ratio, head_frac):
+    """Return where the gold answer sits in the ORIGINAL doc and whether head-tail kept it."""
+    budget = max(1, round(n_orig / ratio))
+    head_n = int(budget * head_frac)
+    tail_n = budget - head_n
+    low = docs.lower()
+    start = -1
+    for a in answers:
+        start = low.find(a.lower())
+        if start >= 0:
+            end = start + len(a)
+            break
+    if start < 0:
+        return {"answer_found": False, "answer_rel_pos": None, "answer_zone": "not_found"}
+
+    enc = tokenizer(docs, add_special_tokens=False, return_offsets_mapping=True)
+    offs = enc["offset_mapping"]
+    s_tok = next((i for i, (_, e) in enumerate(offs) if e > start), len(offs) - 1)
+    e_tok = next((i for i, (b, _) in enumerate(offs) if b >= end), len(offs)) - 1
+
+    if budget >= n_orig:
+        zone = "not_truncated"
+    elif e_tok < head_n:
+        zone = "kept_head"
+    elif s_tok >= n_orig - tail_n:
+        zone = "kept_tail"
+    else:
+        zone = "dropped_middle"
+    return {
+        "answer_found": True,
+        "answer_rel_pos": s_tok / max(n_orig, 1),
+        "answer_zone": zone,
+    }
+
 def generate_chunked(backend, input_ids, max_new_tokens, chunk_size):
     from transformers import DynamicCache
 
@@ -136,6 +170,8 @@ def run(args) -> int:
                 continue
             total_latency = time.perf_counter() - t0
 
+            pos_info = locate_answer(tok, sample["docs"], sample["answers"], n_orig, args.ratio, args.head_frac)
+
             scores = score(answer, sample["answers"])
             record = {
                 "id": sample["id"],
@@ -152,14 +188,19 @@ def run(args) -> int:
                 "compression_latency": compression_latency,
                 "answer": answer,
                 "answers": sample["answers"],
+                "answer_found": pos_info["answer_found"],
+                "answer_rel_pos": pos_info["answer_rel_pos"],
+                "answer_zone": pos_info["answer_zone"],
                 "em": scores["em"],
                 "f1": scores["f1"],
                 "generation_latency": generation_latency,
                 "total_latency": total_latency,
                 "method": method,
                 "head_frac": args.head_frac,
-                "model": args.model,
+                "model": args.model, **pos_info,
             }
+
+
             sink.write(json.dumps(record, ensure_ascii=False) + "\n")
             sink.flush()
             processed += 1
