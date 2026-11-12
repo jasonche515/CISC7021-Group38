@@ -1,4 +1,4 @@
-\documentclass[10pt,a4paper,twocolumn]{article}
+﻿\documentclass[10pt,a4paper,twocolumn]{article}
 
 \usepackage[a4paper,top=1.75cm,bottom=2.0cm,left=1.75cm,right=1.75cm,columnsep=0.65cm]{geometry}
 \usepackage{times}
@@ -13,6 +13,34 @@
 \usepackage{natbib}
 \usepackage[hidelinks]{hyperref}
 \usepackage{titlesec}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usetikzlibrary{arrows.meta,positioning,fit,calc}
+
+% ---- palette used by every figure -----------------------------------------
+\definecolor{cBlue}{HTML}{1F6FB4}
+\definecolor{cOrange}{HTML}{D9772E}
+\definecolor{cTeal}{HTML}{1E8A78}
+\definecolor{cPurple}{HTML}{7A4FA3}
+\definecolor{cGrey}{HTML}{8C8C8C}
+\definecolor{cPaleBlue}{HTML}{D8E5F2}
+\definecolor{cPaleOrange}{HTML}{F7E2D0}
+\definecolor{cPaleTeal}{HTML}{D5EBE6}
+
+% ---- long identifiers ------------------------------------------------------
+% Hyphens and slashes are not break points inside \texttt, so the model and
+% dataset identifiers are given explicit break points; otherwise a long name at
+% the end of a line overflows the column.
+\newcommand{\Llama}{\texttt{Llama-\allowbreak 3.2-\allowbreak 3B-\allowbreak Instruct}}
+\newcommand{\LlamaShort}{\texttt{Llama-\allowbreak 3.2-\allowbreak 3B}}
+\newcommand{\LlamaGated}{\texttt{meta-llama/\allowbreak Llama-\allowbreak 3.2-\allowbreak 3B-\allowbreak Instruct}}
+\newcommand{\LlamaMirror}{\texttt{unsloth/\allowbreak Llama-\allowbreak 3.2-\allowbreak 3B-\allowbreak Instruct}}
+\newcommand{\PhiTwo}{\texttt{microsoft/\allowbreak phi-\allowbreak 2}}
+\newcommand{\QwenOne}{\texttt{Qwen/}\allowbreak\texttt{Qwen2.5-\allowbreak 1.5B-\allowbreak Instruct}}
+\newcommand{\LlamaTwoTok}{\texttt{NousResearch/\allowbreak Llama-\allowbreak 2-\allowbreak 7b-\allowbreak hf}}
+\newcommand{\MFQA}{\texttt{multifieldqa\_\allowbreak en}}
+
+\setlength{\emergencystretch}{2em}
 
 \setlength{\parindent}{1em}
 \setlength{\parskip}{0pt}
@@ -42,10 +70,9 @@ CHE CHON HONG \quad MC551841\\
 \vspace{-0.8cm}
 
 % ===========================================================================
-% DRAFT STATUS: Abstract and Section 1 are written. Everywhere else the body
-% is still the placeholder line
-%     (text text text)
-% with a "% TODO" note describing what must be written there.
+% All numbers in this report are read from the committed result files in
+% part1/part2/part3/part4 and from the aggregated same-machine rerun, and all
+% figures are drawn in TeX. No external image is included.
 % ===========================================================================
 
 \begin{abstract}
@@ -55,7 +82,7 @@ placed in the middle of a long context. Prompt compression attacks both problems
 without retraining the target model, yet its reported gains are usually measured
 with proprietary LLMs and reported as token reductions rather than end-to-end
 cost. We reproduce and evaluate four prompt settings on the full 150-example
-LongBench \texttt{multifieldqa\_en} split with a 3B open-weight target model:
+LongBench \MFQA{} split with a 3B open-weight target model:
 an uncompressed baseline, head-and-tail truncation, LLMLingua, and a
 question-aware long-context variant of LLMLingua, the last two at nominal $2\times$
 and $4\times$ compression. All settings share one fixed sample index, one prompt
@@ -153,11 +180,35 @@ We ask three questions about a small, reproducible configuration:
     compression overhead is included?
 \end{itemize}
 
+Table~\ref{tab:map} states which experiment answers which question. No single
+part answers all three, and that is the point of running four: RQ1 needs two
+ratios of the same method, RQ2 needs two methods at the same budget, and RQ3
+needs every part on one machine, which is why the rerun exists.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}llX@{}}
+\toprule
+Part & Method & Answers \\
+\midrule
+1 & Uncompressed        & reference row for RQ1--RQ2 \\[1pt]
+2 & Head-and-tail       & RQ1, RQ2, RQ3 \\[1pt]
+3 & LLMLingua           & RQ1, RQ2, RQ3 \\[1pt]
+4 & LLMLingua-Enhanced  & RQ1, RQ2 \\[1pt]
+--- & Same-machine rerun & RQ3 only \\
+\bottomrule
+\end{tabularx}
+\caption{Mapping from experiment to research question. Part 4 has no
+same-environment rerun, so it contributes no latency evidence.}
+\label{tab:map}
+\end{table}
+
 \subsection{Contributions}
 
 \begin{itemize}
     \item A shared evaluation harness, used unchanged by all four experiments: one
-    fixed index of the 150 official \texttt{multifieldqa\_en} test examples, one
+    fixed index of the 150 official \MFQA{} test examples, one
     chat-template prompt renderer, one set of Exact Match / token-F1
     implementations, and one configuration module.
     \item Four compression settings implemented end to end and run to completion on
@@ -177,216 +228,1114 @@ We ask three questions about a small, reproducible configuration:
 
 % ---------------------------------------------------------------------------
 \section{Detailed Description}
-(text text text)
+
+This section describes the system we built and the decisions behind it. We first
+define the task and the data (\S\ref{sec:task}) and the models and hardware that
+produced the numbers (\S\ref{sec:models}). Section~\ref{sec:harness} describes
+the shared harness that makes the four experiments comparable,
+Section~\ref{sec:methods} the four compression settings themselves, and
+Section~\ref{sec:implementation} the implementation of the pipeline together with
+the two resource limits that shaped it. Section~\ref{sec:setup} states which run
+produced which row of our result tables, and Section~\ref{sec:protocol} fixes the
+statistical protocol used to compare them.
 
 \subsection{Task and Dataset}
-(text text text)
+\label{sec:task}
 
-% TODO: LongBench multifieldqa_en; question + retrieved documents + gold answers;
-% why all 150 official test examples were kept; how the fixed index is stored in
-% shared/samples.json (seed 42).
+We evaluate on \MFQA{} from LongBench
+\citep{bai-etal-2024-longbench}, a single-document question answering task built
+from multi-field web pages. Each example supplies a question $q$, a context $D$
+of several thousand tokens taken from one document, and a list of short gold
+answers $A$. The model must return the answer span; nothing in the prompt asks for
+an explanation, so the output is a short phrase or a single sentence.
+
+LongBench v1 contains exactly 150 test examples for this dataset, fewer than the
+300--500 our plan assumed. We kept the whole split rather than sub-sampling it:
+published \MFQA{} numbers are computed on the same 150 examples, so keeping all of
+them is the only way our Exact Match and F1 values can be read against the
+literature. A preparation script downloads the LongBench archive (about 110\,MB),
+extracts the \MFQA{} records, sorts them by their LongBench id and writes the
+sample index that every part reads: a list of 150 records, each holding the id,
+the question, the context, the gold answers and the raw length. Because the
+requested count equals the size of the split, the seeded sampling step keeps every
+record and only fixes the order; the index is therefore the complete official
+split, not a random subset of it.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Quantity per example & Min & Median & Mean & Max \\
+\midrule
+Gold answers           & 1     & 1      & 1.0    & 1 \\
+Question (words)       & 1     & 10     & 10.3   & 22 \\
+Context (characters)   & 4\,493 & 31\,376 & 28\,948 & 64\,118 \\
+Prompt (tokens)        & 1\,364 & 7\,026 & 6\,967 & 15\,026 \\
+\bottomrule
+\end{tabular}
+\caption{Shape of the 150-example evaluation set. Prompt lengths are counted on
+the rendered chat prompt with the target tokenizer, so they include the template
+overhead.}
+\label{tab:data}
+\end{table}
+
+The examples are short enough that nothing has to be dropped (Table~\ref{tab:data}).
+After the chat template is applied the mean prompt is 6\,966.8 tokens and the
+longest is 15\,026 tokens, well inside the usable budget of 32\,672 tokens
+(\S\ref{sec:config}); all 150 baseline prompts are therefore processed
+untruncated. One deviation from the interface declared in our plan should be
+recorded: the \texttt{docs} field is null in every result row, because contexts
+were not stored, which kept the result files small. The deviation is identical in
+all four parts, so comparability is unaffected, but scores cannot be recomputed
+from the stored rows without re-running the pipeline.
 
 \subsection{Models and Hardware}
-(text text text)
+\label{sec:models}
 
-% TODO: target model Llama-3.2-3B-Instruct (gated id vs unsloth mirror); 128k
-% native context and why a 32k prompt budget was self-imposed; compressor models
-% (microsoft/phi-2 in Part 3; Qwen2.5-1.5B-Instruct in Part 4); the four machines
-% and the single-machine rerun used for latency.
+\textbf{Target model.} All four settings generate with \Llama{}, a 3B-parameter
+instruction-tuned model with a 128k-token context window
+(\texttt{max\_position\_embeddings} = 131\,072,
+\texttt{rope\_scaling.type} = \texttt{llama3}, factor 32). The choice is
+deliberate. The LLMLingua papers report their gains with large proprietary
+models, and the engineering question that interests us is whether the same
+trade-off survives on a model that a single 12\,GB GPU can serve. The canonical
+identifier \LlamaGated{} is licence-gated, so every part loads the
+weight-identical ungated mirror \LlamaMirror{} instead.
+
+\textbf{Prompt budget.} Although the model supports 131k tokens we cap the prompt
+at 32\,768 and reserve 64 new tokens plus 32 tokens of slack, leaving
+\texttt{MAX\_PROMPT\_TOKENS} = 32\,672. The cap bounds the fp16 KV cache on a
+12\,GB card rather than reflecting a model limitation; the longest sample in our
+index uses less than half of it, so the cap never binds.
+
+\textbf{Compressors.} Part 3 uses the compressor of the reference
+implementation, \PhiTwo{}, a 2.7B model with only 2\,048 positions of context.
+Part 4 replaces it with \QwenOne{}, a 1.5B model with 32\,768 positions, large
+enough to compress an entire document in one pass. Part 3 additionally uses
+\LlamaTwoTok{} as a \emph{measurement tokenizer}, because the Llama-3.2 tokenizer
+files are incompatible with the legacy \texttt{transformers} release that
+\texttt{llmlingua} 0.2.2 requires (\S\ref{sec:pipeline}); that tokenizer never
+generates text. Every reported \texttt{prompt\_tokens} value is measured with the
+\emph{target} tokenizer, so the token columns of different parts are comparable.
+Table~\ref{tab:roles} lists the four roles and their capacities.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}lXr@{}}
+\toprule
+Role & Weights & Positions \\
+\midrule
+Target model (all parts)      & \Llama{} (mirror)        & 131\,072 \\
+Compressor, Part 3            & \PhiTwo{}                & 2\,048 \\
+Compressor, Part 4            & \QwenOne{}               & 32\,768 \\
+Measurement tokenizer, Part 3 & \LlamaTwoTok{}           & --- \\
+\bottomrule
+\end{tabularx}
+\caption{The four model roles. Only the target model generates text; the two
+compressors rank and delete tokens, and the Llama-2 tokenizer only counts them.
+The 2\,048-position limit of the Part 3 compressor is what forces chunking
+(\S\ref{sec:chunking}).}
+\label{tab:roles}
+\end{table}
+
+\textbf{Hardware.} The four experiments ran on four machines: a local NVIDIA RTX
+3060 (12\,GB) for Part 1, a Colab Tesla T4 (15\,GB) for Part 2, an Apple M5 Pro
+with MPS for Part 3 and a Colab CUDA GPU for Part 4. Everything is
+\texttt{float16} except the Part 4 compressor, which was loaded in 4-bit NF4 to
+fit its host. Seconds from different machines are not comparable, which is why
+Section~\ref{sec:rq3} uses the single-machine rerun of
+Section~\ref{sec:setup} and never the per-part latency columns.
 
 \subsection{Shared Evaluation Harness}
-(text text text)
+\label{sec:harness}
 
-% TODO: one contract for all members — files, what is frozen, what a member may
-% change. Expand on the four sub-blocks below.
+Each part adds a different compression step, so the only reason the seven rows can
+share a table is that everything except that step is frozen. The harness is one
+small module per concern, and every module belongs to the group rather than to a
+single experiment:
+
+\begin{itemize}
+  \item the \emph{sample index} --- the fixed list of 150 examples;
+  \item the \emph{prompt renderer} --- prompt wording, chat template and the
+  over-budget fallback;
+  \item the \emph{metric module} --- Exact Match and token-level F1;
+  \item the \emph{configuration module} --- model id, seed, generation and
+  token-budget constants.
+\end{itemize}
+
+An experiment may add a compression function and may add \emph{diagnostic} fields
+to the output schema; changing a frozen component requires a group decision, because
+any such change silently invalidates every earlier result. The contract is checked
+mechanically rather than trusted: recomputing the 150 ids against the index gave
+150/150 matches in all five result files, with no duplicate ids, no empty answers
+and no missing gold answers.
 
 \subsubsection{Sample Index}
-(text text text)
 
-% TODO: 150 ids, order, seed, why cross-part comparability depends on it.
+The index stores the LongBench \texttt{\_id} of each example together with its
+question, context and gold answers. Ids are the join key for everything
+downstream: means are computed per file, but every comparison in
+Section~\ref{sec:results} is computed per id, so a file with a missing or extra
+sample is detected rather than silently averaged in. Since the index is the full
+split it is stable under re-running the preparation script with the same seed,
+and it does not depend on the order in which the experiments were run.
 
 \subsubsection{Prompt Template}
-(text text text)
 
-% TODO: the chat template and instruction/context formatting; why prompt_tokens
-% counts the chat-templated prompt; the token-budget fallback.
+Every method renders its prompt through \texttt{build\_messages}, which produces
+a system message (\emph{``You are a helpful assistant that answers questions
+based only on the provided text.''}) and a user message of the form \emph{``Read
+the following text and answer the question briefly. Text: \{docs\} Question:
+\{question\} Answer:''}. The messages are rendered with the model's chat template
+and \texttt{add\_generation\_prompt=True}, then tokenized with
+\texttt{add\_special\_tokens=False}. The template already emits the special
+tokens, and rendering to text before tokenizing avoids a return-type difference
+between \texttt{transformers} versions that would otherwise make token counts
+depend on the environment.
+
+Two consequences are worth stating. First, \texttt{prompt\_tokens} counts the
+\emph{rendered chat prompt}: it includes the template overhead of roughly thirty
+tokens and is therefore not directly comparable with token counts in papers that
+measure the raw context. All four parts pay the same overhead, so the comparison
+we care about is unaffected. Second, when a prompt exceeds the budget,
+\texttt{build\_with\_budget} binary-searches the longest prefix of \texttt{docs}
+that fits, so the question and the \texttt{Answer:} suffix always survive and
+dropped text always comes from the tail; the flag \texttt{truncated} and the
+original length are written to the row. The fallback never triggered here: 0 of
+150 baseline prompts were truncated.
 
 \subsubsection{Metrics}
-(text text text)
 
-% TODO: SQuAD-style Exact Match and token-level F1; mean over 150 samples; what
-% EM/F1 ignore (e.g. LaTeX fragments, truncation at 64 new tokens).
+The shared metric module implements the SQuAD normalisation used by LongBench.
+Answers are lowercased, articles are removed, punctuation is stripped and
+whitespace is collapsed. Exact Match is an equality test on the normalised
+strings; token-level F1 is the harmonic mean of precision and recall over the
+multiset intersection of normalised tokens. \texttt{score} returns the maximum
+over all gold answers, and reported values are means over 150 samples.
+
+The metric is deliberately strict, and its failure modes matter for reading the
+results. F1 rewards a prediction that contains the answer inside a longer
+sentence, so \emph{``The paper was published on 7 March.''} scores 0.923 against
+\emph{``The paper was published on 7 March 2023.''} while Exact Match scores 0.
+Conversely a single wrong token in a short answer (an electorate name, a year)
+costs nearly everything under both metrics. Exact Match is reported for
+compatibility but never used to decide a comparison: with at most fourteen hits in
+150 samples, one flipped sample moves it by 0.0067. Neither metric detects
+semantic equivalence, and an answer that would need more than
+\texttt{max\_new\_tokens} = 64 tokens is cut off before scoring.
 
 \subsubsection{Configuration}
-(text text text)
+\label{sec:config}
 
-% TODO: greedy decoding, max_new_tokens = 64, MAX_PROMPT_TOKENS, dtype, seeds.
+All parts generate greedily (\texttt{do\_sample=False}, temperature 0) with
+\texttt{max\_new\_tokens} = 64, load the target model in \texttt{float16}, and
+read \texttt{MAX\_PROMPT\_TOKENS} = 32\,672 and \texttt{SEED} = 42 from the
+shared configuration module. Parts 1 and 2 run one warm-up generation before timing
+starts, so the first sample does not absorb CUDA kernel selection. Greedy
+decoding is not bit-exact across GPUs: replaying the baseline on a second machine
+changed 12 of 150 answers word for word while moving mean F1 by 0.0054. Every
+comparison in this report is therefore paired, and latency comparisons are made
+within a single machine.
 
 \subsection{Compared Methods}
-(text text text)
+\label{sec:methods}
 
-% TODO: one paragraph per method plus the target ratio definitions (document
-% ratio vs whole-prompt ratio).
+We compare four settings, which produce seven result rows because the three
+compressed families are run at two nominal ratios. Two definitions are used
+throughout. The \emph{document ratio} $r$ is the budget we ask the compressor for,
+measured on the context only. The \emph{whole-prompt ratio} is the ratio actually
+achieved on the chat-templated prompt; it is always smaller than $r$ because the
+instruction and the question are never compressed. We report the whole-prompt
+ratio in the result tables, since it determines prefill cost, and the document
+ratio only where it matters that a method met its own budget.
+Table~\ref{tab:methods} summarises what each method removes and whether it looks
+at the question at all; the four subsections below give the parameters.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}lXc@{}}
+\toprule
+Method & Unit that is removed & Question-aware \\
+\midrule
+Uncompressed  & nothing (reference row)               & --- \\
+Head-and-tail & one contiguous middle span of tokens & no \\
+LLMLingua     & low-information tokens, per 1\,400-token chunk & no \\
+LLMLingua-Enh.& low-information tokens, whole document & yes \\
+\bottomrule
+\end{tabularx}
+\caption{The compared methods at a glance. The two $\times$2 ratios applied to the
+last three rows give the seven result rows of Table~\ref{tab:main}.}
+\label{tab:methods}
+\end{table}
 
 \subsubsection{Part 1: Uncompressed Baseline}
-(text text text)
 
-% TODO: mechanism, parameters, expected role as reference.
+The baseline sends the full context, the question and the instruction to the
+target model. The baseline script supports an OpenAI-compatible backend as well
+as local inference, and retries once with a halved prompt budget if the GPU
+runs out of memory. Neither path is exercised on our data: 150 of 150 prompts fit
+under the cap and none is truncated, so the row is a genuine uncompressed
+reference rather than a quietly truncated one. It anchors every relative number in
+Section~\ref{sec:results}: F1 0.4296 at 6\,966.8 mean prompt tokens.
 
 \subsubsection{Part 2: Head-and-Tail Truncation}
-(text text text)
+\label{sec:p2}
 
-% TODO: budget b = round(n / r); head_frac = 0.5; instruction and question are
-% never truncated; why this is a non-semantic baseline.
+Truncation keeps the beginning and the end of the document and drops the middle.
+For a document of $n$ tokens and a target ratio $r$ the budget is
+$b=\mathrm{round}(n/r)$; the first $\lfloor b f\rfloor$ tokens and the last
+$b-\lfloor bf\rfloor$ tokens are kept, with $f$ = \texttt{head\_frac} = 0.5, and
+documents already shorter than $b$ are left unchanged. Instruction and question
+are never truncated. Counts use the Llama-3.2 tokenizer, so the budget is
+expressed in the same units as the prompts the model sees.
+
+This is our non-semantic baseline. It uses no model, needs no GPU, costs 0.019\,s
+per sample, and deliberately ignores the question. Its purpose is to test whether
+a compressor has to earn its complexity: a method that scores below truncation at
+the same token budget is, for this task, a worse way to spend the same number of
+tokens. Both settings hit their document budget exactly (2.000 and 4.000) and
+remove 49.4\% and 74.1\% of the whole-prompt tokens.
 
 \subsubsection{Part 3: LLMLingua}
-(text text text)
+\label{sec:p3}
 
-% TODO: coarse-to-fine, iterative token filtering, rates 0.5 / 0.25, phi-2 as
-% compressor, measurement tokenizer.
+Part 3 runs \texttt{llmlingua} 0.2.2 with \PhiTwo{} as compressor,
+token-level iterative filtering with \texttt{iterative\_size} = 200, and
+compression rates 0.5 and 0.25 for the $2\times$ and $4\times$ targets. The
+library's coarse-to-fine controller is used as shipped: budgets are allocated per
+component and low-information tokens are removed in several passes, with the KV
+cache trick that lets the compressor score tokens without re-running the whole
+prompt each time.
+
+Two implementation constraints shape this part. First, \PhiTwo{} has 2\,048
+positions of context while the mean prompt is 6\,967 tokens, so each document is
+split into ordered, non-overlapping chunks of at most 1\,400 measurement-token
+blocks, every chunk is compressed to the same rate, and the outputs are
+concatenated in the original order. In the final file 296 of 300 rows (98.7\%)
+are chunked, with a mean of 6.28 chunks and a maximum of 13. Second, the
+compression budget is counted with the Llama-2 tokenizer, which is compatible
+with the legacy \texttt{transformers} release that \texttt{llmlingua} 0.2.2
+needs, while every reported prompt length is counted with the Llama-3.2
+tokenizer. The two tokenizers disagree, so the achieved whole-prompt ratios are
+2.094 and 3.508 rather than exactly 2 and 4.
 
 \subsubsection{Part 4: LLMLingua-Enhanced}
-(text text text)
+\label{sec:p4}
 
-% TODO: what changed relative to Part 3 (single-pass Qwen2.5-1.5B-Instruct,
-% question-aware ranking, sentence-level filter), and why the improvement cannot
-% be attributed to a single factor.
+Part 4 keeps the evaluation protocol of Part 3 and changes only the compressor:
+\QwenOne{} compresses each whole document in a single
+pass, with the question visible to the ranker. \texttt{compress\_prompt} is called
+once per document with \texttt{rate} $= 1/r$, \texttt{rank\_method} =
+\texttt{longllmlingua} (re-ranking plus fine-grained token selection),
+\texttt{condition\_in\_question} = \texttt{after\_condition} (the question is
+prefixed as a conditioning context, its perplexity contribution is removed
+afterwards, and the returned prompt still starts with the original instruction),
+\texttt{use\_sentence\_level\_filter} = \texttt{True} (sentences are pre-filtered
+to 1.4 times the budget and tokens are then trimmed to the target) and
+\texttt{concate\_question} = \texttt{False}. No row is chunked
+(\texttt{chunked\_count} = 0 over 300 rows, at most one chunk per document), and
+the achieved whole-prompt ratios are 2.144 and 4.133.
+
+Part 4 exists to test one explanation of Part 3's loss: that chunking, not
+LLMLingua, caused it. It is a single test of that explanation, not a controlled
+ablation. Between Part 3 and Part 4 the compressor changes size (2.7B to 1.5B),
+the ranking becomes question-aware, the sentence-level filter is enabled, the
+context limit stops binding and the weights are quantised to 4-bit. The measured
+gain is therefore an upper bound on what removing chunking can buy, and
+Section~\ref{sec:discussion} treats it as one.
+
+Table~\ref{tab:budgets} closes the method description with the numbers that
+matter for reading the results: the mean prompt length actually fed to the target
+model and the whole-prompt ratio that length corresponds to. Instruction and
+question survive compression and are counted in the denominator, so the achieved
+ratio is not the nominal one; every family falls short of its target except
+LLMLingua-Enhanced at $4\times$, which overshoots to 4.133, because each
+compressor budgets with its own tokenizer while the ratio here is measured with
+the Llama-3.2 tokenizer.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabular}{@{}lcrr@{}}
+\toprule
+Setting & Nominal $r$ & Prompt tokens & Achieved \\
+\midrule
+Uncompressed   & $1\times$ & 6\,966.8 & 1.000 \\
+Head-and-tail  & $2\times$ & 3\,523.1 & 1.969 \\
+               & $4\times$ & 1\,801.2 & 3.820 \\
+LLMLingua      & $2\times$ & 3\,308.1 & 2.094 \\
+               & $4\times$ & 1\,961.6 & 3.508 \\
+LLMLingua-Enh. & $2\times$ & 3\,254.1 & 2.144 \\
+               & $4\times$ & 1\,663.0 & 4.133 \\
+\bottomrule
+\end{tabular}
+\caption{Tokens actually sent to the target model and the whole-prompt ratio they
+correspond to. The achieved ratio is the mean of the per-sample ratio between the
+uncompressed and the compressed prompt, so it falls short of the nominal ratio
+whenever the question is a large share of the prompt.}
+\label{tab:budgets}
+\end{table}
 
 \subsection{Implementation}
-(text text text)
+\label{sec:implementation}
 
-% TODO: how the pipeline is structured end to end; the three sub-blocks below.
+The pipeline is a two-stage compress-then-evaluate design. Stage one loads only
+the compressor, compresses every (sample, ratio) pair and appends one JSON record
+per pair. Stage two loads only the target model, reads the compressed prompts,
+generates, scores, writes a checkpoint after every sample, and finally aggregates
+a summary. Figure~\ref{fig:pipeline} sketches the components and where the stage
+boundary falls; Table~\ref{tab:stages} states what each stage holds in memory and
+what it emits.
 
 \subsubsection{Two-Stage Compress and Evaluate Pipeline}
-(text text text)
+\label{sec:pipeline}
 
-% TODO: compressor and target model never co-resident; two environments because
-% of the transformers version conflict; JSONL checkpoints and resume.
+The split is not cosmetic. A compressor and a 3B target model are both large
+enough that holding them at once is uncomfortable on a 15\,GB T4, and the two
+stages have incompatible dependencies: \texttt{llmlingua} 0.2.2 stores the KV
+cache as a list of \texttt{[key, value]} pairs and slices it during token-level
+compression, whereas Llama 3.2 needs a \texttt{transformers} release that returns
+a \texttt{DynamicCache} instead. Part 3 resolves this by running the stages in two
+environments, with a \texttt{pip install} of a different \texttt{transformers}
+between them; this is safe because each stage is its own process and reads only
+files written by the previous one. Part 4 instead installs an in-process
+compatibility shim that converts the cache in both directions, so one environment
+suffices for both stages.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}lX@{}}
+\toprule
+Stage & Resident model and output per sample \\
+\midrule
+1: compress & compressor only; one record per ratio, holding the compressed
+prompt and its length \\
+2: evaluate & target model only; one record holding the answer and both scores \\
+\bottomrule
+\end{tabularx}
+\caption{The two stages never co-reside in memory. A record is appended to a
+JSONL checkpoint as soon as it is produced, which is the unit of resumption.}
+\label{tab:stages}
+\end{table}
+
+Both stages resume. Every finished sample is appended to a JSONL checkpoint, a
+re-run skips ids that are already present, and \texttt{-{}-no-resume} starts over.
+This mattered in practice: a compression stage of this size takes on the order
+of an hour of wall-clock time on a free GPU, and Colab sessions expire well
+before that.
 
 \subsubsection{Chunked Compression and Chunked Prefill}
-(text text text)
+\label{sec:chunking}
 
-% TODO: 1,400-token compressor chunks in Part 3 (296/300 rows chunked); no
-% chunking in Part 4; --chunk-size / --chunk-threshold prefill in Part 2; how
-% chunking is recorded per row.
+Two different mechanisms share the word ``chunking'', and only one of them affects
+quality.
+
+\emph{Compressor chunking} (Part 3) changes \emph{what} is compressed. A
+6\,967-token prompt does not fit into the compressor's 2\,048 positions, so the
+document is cut into 1\,400-token blocks, each block is ranked and filtered on its
+own, and the blocks are concatenated. Two distortions follow. A block is ranked
+without seeing the question, so tokens that matter for this question are not
+preferred; and each block receives its own budget, so cut points are decided by
+text position rather than by information value. Every row records
+\texttt{chunked}, \texttt{num\_compression\_chunks} and the compressor's position
+limit, so the defect is visible in the data and not only in the code.
+
+\emph{Prefill chunking} (Part 2) changes only \emph{how memory is allocated}. On a
+free Colab T4, prompts above \texttt{-{}-chunk-threshold} = 4\,096 tokens ran out
+of memory in the attention step, so longer prompts are prefilled in blocks of
+\texttt{-{}-chunk-size} = 2\,048 tokens while shorter prompts take the Part 1
+path. The resulting logits are the same as a single prefill pass; the mechanism
+trades speed for memory and is irrelevant to the accuracy comparison.
 
 \subsubsection{Memory and Out-of-Memory Handling}
-(text text text)
+\label{sec:oom}
 
-% TODO: Colab T4 limits, OOM retry with halved prompt budget, skipped-and-retried
-% rows, oom_skipped_ids.
+Memory, not compute, was the binding constraint on every host except the local RTX
+3060. Three safeguards were needed.
+
+\begin{itemize}
+  \item \emph{Skip and retry.} If a sample still runs out of memory after chunked
+  prefill, Part 2 skips it and does not write it to the checkpoint, so a later run
+  retries it; the ids are listed in \texttt{oom\_skipped\_ids} in the final JSON.
+  The baseline instead retries once with a halved prompt budget and sets
+  \texttt{oom\_fallback}, which is preferable for a reference row, where a missing
+  sample cannot later be re-scored.
+  \item \emph{Load-time guards.} Part 4 prints host RAM and commit headroom before
+  loading anything and aborts with a clear message when they are below what the
+  checkpoint needs (4\,GiB for a 4-bit compressor, 6\,GiB for \texttt{float16},
+  8\,GiB for the target model). Without the guard, paging while a multi-GB
+  safetensors shard is mapped froze the desktop instead of raising an error.
+  \item \emph{Quantised compressor.} \texttt{-{}-load-in-4bit} loads the Part 4
+  compressor in NF4, about 1.2\,GB instead of 4.5\,GB, which is what made the
+  300-row compression stage fit on the Colab GPU. On Windows, checkpoint loading
+  also retries with \texttt{disable\_mmap=True} when the mapped shard cannot be
+  committed (\texttt{WinError 1455}).
+\end{itemize}
 
 \subsubsection{System Overview}
-(text text text)
+\label{sec:overview}
 
-% TODO: insert the pipeline / component diagram here (figure with caption and
-% label). One figure covering data -> (compression) -> generation -> scoring.
+Figure~\ref{fig:pipeline} shows the components and the data that flows between
+them. The frozen inputs are the sample index and the prompt renderer; the only
+method-specific component is the compression block, which is a no-op (Part 1), a
+token slicer (Part 2), or a call into \texttt{llmlingua} with one of the two
+compressor configurations. Everything downstream is shared. Timings are recorded
+per stage, which is what makes the latency decomposition of
+Section~\ref{sec:rq3} possible, and the per-sample record is the unit that the
+paired tests consume.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  node distance=4mm,
+  box/.style={draw=cBlue, fill=cPaleBlue, rounded corners=1.5pt, align=center,
+              inner sep=2.5pt, minimum height=11mm, text width=2.2cm},
+  comp/.style={box, draw=cOrange, fill=cPaleOrange},
+  arr/.style={-{Latex[length=1.6mm]}, semithick, draw=black!70}
+]
+\node[box] (data) {\textbf{Sample index}\\ 150 records\\ fixed order};
+\node[box, right=of data] (prompt) {\textbf{Prompt builder}\\ chat template\\ budget fallback};
+\node[comp, right=of prompt] (compress) {\textbf{Compression}\\ none, head-tail,\\ LLMLingua};
+\node[box, right=of compress] (gen) {\textbf{Target model}\\ \LlamaShort{}\\ greedy, 64 tokens};
+\node[box, right=of gen] (score) {\textbf{Scoring}\\ Exact Match\\ token F1};
+\node[box, right=of score] (out) {\textbf{Output}\\ JSONL per sample\\ JSON summary};
+\foreach \a/\b in {data/prompt, prompt/compress, compress/gen, gen/score, score/out}
+  \draw[arr] (\a) -- (\b);
+\node[draw=cTeal, dashed, thick, rounded corners=2pt, inner sep=3pt,
+      fit=(compress)(gen)] (stage) {};
+\node[font=\scriptsize, text=cTeal, below=1.2mm of stage]
+  {stage 1 (compress) and stage 2 (evaluate) run in separate processes};
+\end{tikzpicture}
+\caption{System overview. The blue blocks are the frozen harness and are shared by
+all four settings; the orange block is the only method-specific component. The
+dashed box marks the boundary between the two stages, which are never co-resident
+in memory.}
+\label{fig:pipeline}
+\end{figure*}
 
 \subsection{Experimental Setup}
-(text text text)
+\label{sec:setup}
 
-% TODO: which settings were run, on which machine, at which ratio, when, and
-% which result file each row comes from.
+Table~\ref{tab:config} collects the settings common to all seven rows. The rows
+themselves come from five files produced by five runs, and the provenance matters,
+because the same method measured on two machines does not give the same seconds:
+
+\begin{itemize}
+  \item Part 1: local RTX 3060, \texttt{float16}, 150 samples, 0 truncated.
+  \item Part 2: Colab T4, \texttt{float16}, two runs (\texttt{-{}-ratio 2} and
+  \texttt{-{}-ratio 4}), 150 samples each.
+  \item Part 3: Apple M5 Pro (MPS), \texttt{float16}, one compression run and one
+  evaluation run covering both ratios, 300 rows.
+  \item Part 4: Colab CUDA GPU, compressor in NF4 and target model in
+  \texttt{float16}, 300 rows, 0 chunked.
+  \item Same-environment rerun: the group's orchestration script on the RTX 3060
+  replays the five Part 1--3 settings back to back in one process with one
+  \texttt{transformers} install and writes to a separate results directory
+  rather than over the per-part files. Part 4 is excluded, because its
+  compressor family could not be loaded on that host.
+\end{itemize}
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}lX@{}}
+\toprule
+Item & Setting \\
+\midrule
+Dataset & LongBench v1 \MFQA{} (test split) \\
+Samples & 150 (entire split), fixed index, seed 42 \\
+Target model & \Llama{}, \texttt{float16} \\
+Compressors & \PhiTwo{} (P3); \QwenOne{} (P4) \\
+Decoding & greedy, \texttt{max\_new\_tokens} = 64 \\
+Prompt budget & 32\,672 tokens (32\,768 $-$ 64 $-$ 32) \\
+Metrics & Exact Match, token-level F1 (SQuAD normalisation) \\
+Compression ratios & $2\times$ and $4\times$ (nominal, per document) \\
+Hardware & RTX 3060, Colab T4, Apple M5 Pro, Colab CUDA \\
+\bottomrule
+\end{tabularx}
+\caption{Configuration shared by all seven result rows.}
+\label{tab:config}
+\end{table}
+
+The seven rows are audited rather than assumed: 150, 150, 150, 300 and 300 rows
+across the five files, no duplicate ids, no empty answers, and 150/150 ids
+matching the shared sample index in every file. Two settings are run at each ratio
+rather than one, so the table has seven rows from four methods.
 
 \subsection{Evaluation Protocol}
-(text text text)
+\label{sec:protocol}
 
-% TODO: primary metrics; paired-by-id F1 differences; 95% CI = mean +/- 1.96 SE;
-% how "significant" is decided; which contrasts are reported; why per-part
-% latencies are not compared across machines.
+\textbf{Primary metric.} Token F1 is the metric we draw conclusions from, and
+Exact Match is reported for comparability. The reason is arithmetic: the best
+setting has fourteen exact matches out of 150, so one flipped sample moves EM by
+0.0067 and the difference between two settings can be produced by a single answer.
+F1 is continuous and uses all 150 samples.
+
+\textbf{Paired comparison.} For two settings $a$ and $b$ we compute
+$d_i = \mathrm{F1}_b(i) - \mathrm{F1}_a(i)$ on the same 150 samples, then report
+the mean $\bar d$, its standard error $s_d/\sqrt{n}$ and the 95\% interval
+$\bar d \pm 1.96\,s_d/\sqrt{n}$. Pairing removes the variance that comes from
+sample difficulty, which is large here: F1 has a standard deviation of about 0.29
+across samples while the differences we test are of order 0.05. An unpaired
+comparison of two means with that variance would need thousands of samples to
+resolve a 0.04 difference; the paired interval resolves it with 150.
+
+\textbf{Decision rule.} A contrast is called significant when its interval
+excludes zero and not significant otherwise. We do not compute $p$-values and do
+not apply a multiple-comparison correction; with twelve reported contrasts, and with
+intervals that mostly exclude zero by a wide margin, the qualitative conclusions
+do not depend on either choice, and the one marginal contrast is flagged as
+marginal rather than promoted.
+
+\textbf{Replication.} Because per-part latencies are not comparable, the five
+Part 1--3 settings were re-run in one environment. The rerun reproduces the
+per-part F1 values within 0.0075, which we take as evidence that the harness is
+stable, and it supplies every latency number in Section~\ref{sec:rq3}. Two things
+do not reproduce and are disclosed in Section~\ref{sec:threats}: the significance
+verdict for the uncompressed to truncation-$2\times$ contrast, and the Exact Match
+count for LLMLingua at $4\times$ (two hits per-part, one in the rerun).
 
 % ---------------------------------------------------------------------------
 \section{Results and Evaluation}
-(text text text)
+\label{sec:results}
+
+We report the seven settings together (\S\ref{sec:main}), answer the three
+research questions in turn (\S\ref{sec:rq1}--\S\ref{sec:rq3}), look at individual
+predictions (\S\ref{sec:qual}), and then discuss what the pattern implies
+(\S\ref{sec:discussion}--\S\ref{sec:threats}).
 
 \subsection{Main Results}
-(text text text)
+\label{sec:main}
 
-% TODO: the seven-setting table (uncompressed, head-tail 2x/4x, LLMLingua
-% 2x/4x, LLMLingua-enhanced 2x/4x): n, EM, F1, prompt tokens, token reduction,
-% compression / generation / total latency. Reference part4 results_table.md.
+Table~\ref{tab:main} lists all seven settings. Every value is read from the
+committed result files by a script rather than transcribed, and the same script
+recomputes the paired contrasts of Table~\ref{tab:paired} from the same files.
+
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+Method & $n$ & EM & F1 & F1 sd & Prompt tokens & Token drop & Chunked & Total (s) \\
+\midrule
+Uncompressed (P1)              & 150 & 0.0933 & \textbf{0.4296} & 0.291 & 6\,966.8 & ---      & ---     & 4.65 \\
+Head-tail $2\times$ (P2)       & 150 & 0.0733 & 0.4065 & 0.293 & 3\,523.1 & 49.4\%   & ---     & 5.82 \\
+Head-tail $4\times$ (P2)       & 150 & 0.0667 & 0.3620 & 0.298 & 1\,801.2 & 74.1\%   & ---     & 3.55 \\
+LLMLingua $2\times$ (P3)       & 150 & 0.0067 & 0.2626 & 0.267 & 3\,308.1 & 52.5\%   & 148/150 & 13.84 \\
+LLMLingua $4\times$ (P3)       & 150 & 0.0133 & 0.2207 & 0.240 & 1\,961.6 & 71.8\%   & 148/150 & 11.98 \\
+LLMLingua-Enh. $2\times$ (P4)  & 150 & 0.0000 & 0.3070 & 0.257 & 3\,254.1 & 53.3\%   & 0/150   & 19.64 \\
+LLMLingua-Enh. $4\times$ (P4)  & 150 & 0.0067 & 0.2794 & 0.256 & 1\,663.0 & 76.1\%   & 0/150   & 16.48 \\
+\bottomrule
+\end{tabular}
+\caption{All seven settings. Prompt tokens and token drop are measured with the
+target tokenizer against the Part 1 mean of 6\,966.8; ``Chunked'' is the number of
+rows whose context had to be compressed in blocks. Seconds are from the machine
+that produced each file, so only the quality and token columns may be compared
+across rows; see Table~\ref{tab:latency} for latency.}
+\label{tab:main}
+\end{table*}
+
+Three observations organise the rest of the section. First, accuracy falls
+monotonically as the ratio increases in all three compressed families: F1 goes
+from 0.4296 to 0.4065 to 0.3620 for truncation, from 0.4296 to 0.2626 to 0.2207
+for LLMLingua, and from 0.4296 to 0.3070 to 0.2794 for LLMLingua-Enhanced. Second,
+the \emph{slope} differs enormously. Truncation gives up 5.4\% of relative F1 at
+$2\times$ and 15.7\% at $4\times$; LLMLingua gives up 38.9\% and 48.6\%;
+LLMLingua-Enhanced gives up 28.5\% and 35.0\%. Same token budgets, same target
+model, same samples: the method matters more than the budget. Third, Exact Match
+collapses under LLMLingua (1 and 2 hits out of 150, and 0 and 1 for the enhanced
+variant) while F1 stays between 0.22 and 0.31. That gap is itself a result: the
+compressed prompts still contain most of the answer words, but they no longer
+support an exact reproduction of the answer span.
 
 \subsection{RQ1: Accuracy versus Compression Ratio}
-(text text text)
+\label{sec:rq1}
 
-% TODO: monotone F1 decline from 1x to 2x to 4x in all three compressed families;
-% include the accuracy--compression figure (figures/accuracy_compression_tradeoff).
+Figure~\ref{fig:accuracy} plots F1 against the achieved whole-prompt ratio. The
+answer to RQ1 is yes, and the effect is monotone: at $2\times$ every method loses
+accuracy, at $4\times$ every method loses more, and no family reverses the
+ordering. The magnitude is method-dependent rather than universal. Truncation
+loses 0.0231 of F1 for the first halving and another 0.0445 for the second;
+LLMLingua loses 0.1670 and then 0.0419; LLMLingua-Enhanced loses 0.1226 and then
+0.0276. Most of LLMLingua's damage is therefore done by the first compression
+step, not by the stronger one, which is consistent with token-level filtering
+removing the most informative words early and having less to remove afterwards.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\columnwidth, height=5.1cm,
+  xlabel={Achieved whole-prompt compression ratio},
+  ylabel={Token F1},
+  xlabel style={font=\scriptsize}, ylabel style={font=\scriptsize},
+  tick label style={font=\scriptsize},
+  xmin=0.85, xmax=4.55, ymin=0.18, ymax=0.47,
+  grid=major, grid style={black!12},
+  legend pos=north east,
+  legend style={font=\scriptsize, draw=none, fill=none, legend cell align=left},
+]
+\addplot[thick, color=cBlue, mark=*, mark options={solid, fill=cBlue, draw=cBlue},
+         mark size=1.6pt]
+  coordinates {(1.000,0.4296) (1.969,0.4065) (3.820,0.3620)};
+\addlegendentry{Head-and-tail}
+\addplot[thick, color=cOrange, dashed,
+         mark=square*, mark options={solid, fill=cOrange, draw=cOrange},
+         mark size=1.6pt]
+  coordinates {(1.000,0.4296) (2.094,0.2626) (3.508,0.2207)};
+\addlegendentry{LLMLingua}
+\addplot[thick, color=cTeal, dotted,
+         mark=triangle*, mark options={solid, fill=cTeal, draw=cTeal},
+         mark size=2pt]
+  coordinates {(1.000,0.4296) (2.144,0.3070) (4.133,0.2794)};
+\addlegendentry{LLMLingua-Enhanced}
+\addplot[only marks, mark=star, mark size=4.5pt,
+         mark options={solid, fill=cPurple, draw=cPurple}]
+  coordinates {(1.000,0.4296)};
+\addlegendentry{Uncompressed}
+\end{axis}
+\end{tikzpicture}
+\caption{Token F1 against the achieved whole-prompt compression ratio. All three
+families start from the same uncompressed point (purple star) and lose accuracy
+monotonically with the ratio, but the slopes differ by an order of magnitude.
+Colour is redundant with line style and marker shape, so the ordering survives a
+black-and-white print.}
+\label{fig:accuracy}
+\end{figure}
+
+Two caveats attach to the figure. The horizontal axis is the achieved ratio, not
+the nominal one, which is why the three $2\times$ points do not coincide: the
+methods use different tokenizers and different notions of a compressed unit.
+And the points are means over 150 samples with a per-sample standard deviation of
+about 0.29, so the lines summarise a very wide distribution; the paired intervals
+of Table~\ref{tab:paired}, not the vertical distance between means, are what
+support the claims.
 
 \subsection{RQ2: LLMLingua versus Truncation at Equal Token Budget}
-(text text text)
+\label{sec:rq2}
 
-% TODO: paired contrasts — LLMLingua loses to truncation (-0.1440 / -0.1414);
-% enhanced LLMLingua improves over LLMLingua (+0.0444 / +0.0587) but still loses
-% to truncation (-0.0995 / -0.0827); all CIs exclude zero.
+Table~\ref{tab:paired} reports the paired contrasts. The answer to RQ2 is no, in
+both variants and at both ratios. At $2\times$, replacing truncation with
+LLMLingua costs 0.1440 F1 (95\% CI $[-0.186, -0.102]$); at $4\times$ it costs
+0.1414 ($[-0.183, -0.100]$). The enhanced variant is a real improvement on
+LLMLingua --- $+0.0444$ ($[+0.013, +0.076]$) at $2\times$ and $+0.0587$
+($[+0.025, +0.093]$) at $4\times$, both excluding zero --- but it remains 0.0995
+and 0.0827 below truncation, and those intervals exclude zero as well.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+Contrast & $\Delta$F1 & 95\% CI & Verdict \\
+\midrule
+Uncompressed $\rightarrow$ Head-tail $2\times$  & $-0.0231$ & $[-0.057, +0.011]$ & not significant \\
+Uncompressed $\rightarrow$ Head-tail $4\times$  & $-0.0676$ & $[-0.107, -0.028]$ & loss \\
+Uncompressed $\rightarrow$ LLMLingua $2\times$  & $-0.1670$ & $[-0.208, -0.127]$ & loss \\
+Uncompressed $\rightarrow$ LLMLingua $4\times$  & $-0.2090$ & $[-0.250, -0.168]$ & loss \\
+Head-tail $2\times$ $\rightarrow$ LLMLingua $2\times$ & $-0.1440$ & $[-0.186, -0.102]$ & loss \\
+Head-tail $4\times$ $\rightarrow$ LLMLingua $4\times$ & $-0.1414$ & $[-0.183, -0.100]$ & loss \\
+LLMLingua $2\times$ $\rightarrow$ Enhanced $2\times$ & $+0.0444$ & $[+0.013, +0.076]$ & gain \\
+LLMLingua $4\times$ $\rightarrow$ Enhanced $4\times$ & $+0.0587$ & $[+0.025, +0.093]$ & gain \\
+Head-tail $2\times$ $\rightarrow$ Enhanced $2\times$ & $-0.0995$ & $[-0.142, -0.057]$ & loss \\
+Head-tail $4\times$ $\rightarrow$ Enhanced $4\times$ & $-0.0827$ & $[-0.128, -0.037]$ & loss \\
+\midrule
+Uncompressed $\rightarrow$ Enhanced $2\times$ & $-0.1226$ & $[-0.162, -0.083]$ & loss \\
+Uncompressed $\rightarrow$ Enhanced $4\times$ & $-0.1503$ & $[-0.192, -0.108]$ & loss \\
+\bottomrule
+\end{tabular}
+\caption{Paired F1 differences on the same 150 samples (second minus first),
+paired by id; 95\% CI $=$ mean $\pm 1.96$ standard errors. ``Not significant''
+means the interval contains zero.}
+\label{tab:paired}
+\end{table*}
+
+The size of the recovered gap is informative. Expressing the Part 4 gain as a
+share of the Part 2--Part 3 difference gives 31\% at $2\times$ ($0.0444/0.1440$)
+and 42\% at $4\times$ ($0.0587/0.1414$). Removing chunking and adding
+question-aware ranking therefore explains roughly a third to two fifths of the
+deficit, and it explains at most that much, since Part 4 also changed the
+compressor size, enabled the sentence filter and quantised the weights
+(\S\ref{sec:p4}). The prediction of the original paper --- that LLMLingua beats a
+positional baseline at the same budget --- is not reproduced by this
+implementation, and de-chunking alone does not rescue it.
 
 \subsection{RQ3: End-to-End Latency}
-(text text text)
+\label{sec:rq3}
 
-% TODO: use the single-machine rerun only; truncation cuts total latency by
-% 43.6% / 65.7%; LLMLingua 2x is 43.9% slower than uncompressed once compression
-% is charged; Part 4 has no common-hardware rerun (state this explicitly).
+Only the same-environment rerun can answer RQ3, because the per-part runs used
+four machines. Table~\ref{tab:latency} and Figure~\ref{fig:latency} decompose the
+total into compression and generation.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Method & F1 & Comp. & Gen. & Total & $\Delta$ \\
+\midrule
+Uncompressed   & 0.4350 & ---   & 9.403 & 9.43  & --- \\
+Head-tail $2\times$ & 0.3990 & 0.020 & 5.291 & 5.32 & $-43.6\%$ \\
+Head-tail $4\times$ & 0.3633 & 0.019 & 3.209 & 3.23 & $-65.7\%$ \\
+LLMLingua $2\times$ & 0.2569 & 7.496 & 6.032 & 13.57 & $+43.9\%$ \\
+LLMLingua $4\times$ & 0.2221 & 6.711 & 4.034 & 10.76 & $+14.1\%$ \\
+\bottomrule
+\end{tabular}
+\caption{Single-machine rerun (one RTX 3060, one process, one
+\texttt{transformers} install): seconds per sample and relative change in total
+latency. F1 reproduces the per-part table within 0.0075.}
+\label{tab:latency}
+\end{table}
+
+The answer depends entirely on the method. Truncation is effectively free
+(0.019--0.020\,s) and cuts total latency by 43.6\% at $2\times$ and 65.7\% at
+$4\times$: it removes half or three quarters of the tokens and pays nothing to do
+so. LLMLingua \emph{increases} latency at both ratios, by 43.9\% at $2\times$ and
+14.1\% at $4\times$. The mechanism is visible in the decomposition: at $2\times$
+generation falls from 9.403\,s to 6.032\,s, a saving of 3.371\,s, while
+compression costs 7.496\,s, so the net effect is 4.125\,s of extra latency. At
+$4\times$ the generation saving is larger (5.369\,s) and compression is cheaper
+(6.711\,s), but the two still do not cross. The break-even condition is
+$\ell_{\text{comp}} < \ell_{\text{gen}}^{\text{unc}} -
+\ell_{\text{gen}}^{\text{comp}}$; with a 2.7B compressor over a 7k-token prompt
+on one GPU, it does not hold.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\columnwidth, height=5.2cm,
+  ybar stacked, bar width=9pt,
+  xmin=0.4, xmax=5.6, ymin=0, ymax=16.2,
+  ylabel={Seconds per sample}, ylabel style={font=\scriptsize},
+  tick label style={font=\scriptsize},
+  xtick={1,2,3,4,5},
+  xticklabels={Unc., HT\,$2\times$, HT\,$4\times$, LL\,$2\times$, LL\,$4\times$},
+  xticklabel style={font=\scriptsize, rotate=25, anchor=north east},
+  ymajorgrids, grid style={black!12},
+  legend pos=north west,
+  legend style={font=\scriptsize, draw=none, fill=none, legend cell align=left},
+]
+\addplot[fill=cOrange, draw=cOrange!80!black]
+  coordinates {(1,0.000) (2,0.020) (3,0.019) (4,7.496) (5,6.711)};
+\addlegendentry{Compression}
+\addplot[fill=cPaleBlue, draw=cBlue]
+  coordinates {(1,9.403) (2,5.291) (3,3.209) (4,6.032) (5,4.034)};
+\addlegendentry{Generation}
+\node[font=\scriptsize, anchor=south, text=cGrey] at (axis cs:1,9.55)  {9.43};
+\node[font=\scriptsize, anchor=south, text=cGrey] at (axis cs:2,5.45)  {5.32};
+\node[font=\scriptsize, anchor=south, text=cGrey] at (axis cs:3,3.35)  {3.23};
+\node[font=\scriptsize, anchor=south, text=cGrey, fill=white, inner sep=1pt]
+  at (axis cs:4,13.65) {13.57};
+\node[font=\scriptsize, anchor=south, text=cGrey] at (axis cs:5,10.85) {10.76};
+\end{axis}
+\end{tikzpicture}
+\caption{Latency decomposition from the single-machine rerun. Truncation is
+almost entirely generation time (pale blue); LLMLingua spends more seconds in the
+compressor (orange) than it saves in generation.}
+\label{fig:latency}
+\end{figure}
+
+Part 4 is reported for completeness and cannot be placed in this comparison. Its
+compressor costs 16.9\,s ($2\times$) and 14.7\,s ($4\times$) per sample, the
+highest of all seven settings, because \texttt{longllmlingua} with the
+sentence-level filter runs one forward pass per sentence; its generation stage is
+the cheapest (2.69\,s and 1.82\,s) because the compressed prompt is genuinely
+shorter. But those two stages ran on a Colab GPU while the rerun ran on the RTX
+3060, and Part 4 has no same-environment counterpart, so no ratio between those
+numbers is meaningful.
 
 \subsection{Qualitative Analysis}
-(text text text)
+\label{sec:qual}
 
-% TODO: reproducible success and failure cases from
-% part3_llmlingua/qualitative_cases.md; what compression removes that the
-% question needed; what survives intact.
+Aggregate F1 says that LLMLingua is worse; it does not say how. We therefore
+generated four cases with predefined rules --- exact preservation, preservation of
+evidence that truncation removes, loss of a precise date, replacement of the
+answer by a related distractor --- applied mechanically to the committed result
+files by a selection script, so that the selection is
+reproducible rather than cherry-picked.
+
+\emph{Exact preservation} (sample \texttt{25ebce\ldots}): \emph{``When was Weep
+Not, Child first published?''} LLMLingua returns \emph{1964} exactly at both
+ratios. Truncation at $4\times$ does as well; at $2\times$ it appends
+\emph{``under the name James Ngugi''} and scores 0.800 rather than 1.000. The
+fact is short, salient and repeated near the start of the document, which is
+exactly the regime prompt compression is designed for.
+
+\emph{Evidence outside the retained window} (sample \texttt{3074f0\ldots}): the
+question asks how the infall rate and gas density in a magnetized model compare
+with non-magnetized accretion, and the evidence sits at 65.1\% of the document.
+Truncation keeps the two ends, so both of its answers begin \emph{``The text does
+not provide a direct comparison\ldots''} and score F1 0.182. LLMLingua keeps the
+numerical relation and scores 0.667 ($2\times$) and 0.788 ($4\times$). This is the
+case the method is designed for, and it is a genuine win.
+
+\emph{Loss of a precise token} (sample \texttt{46b15f\ldots}): the answer is
+\emph{``7 March 2023''}. Truncation returns it exactly at both ratios (F1 1.000);
+LLMLingua returns \emph{``7 March''} at $2\times$ (F1 0.923) and claims the date is
+absent at $4\times$ (F1 0.133). Token-level filtering treats the year as a
+low-information token in a context full of years.
+
+\emph{A plausible distractor} (sample \texttt{462011\ldots}): the answer is
+\emph{``The Wallace electorate''}. The document also says the seat was later
+renamed \emph{Clutha-Southland}; LLMLingua keeps the later name and returns it at
+both ratios (F1 0.154 and 0.143), while truncation returns the correct one
+(F1 1.000). Compression preserved a salient entity and weakened the temporal
+relation that disambiguates it.
+
+The four cases are not a sample of the 150, but they line up with the aggregate
+number: compression is good at keeping redundant, salient facts and bad at keeping
+the one token that makes an answer exactly right.
 
 \subsection{Discussion}
-(text text text)
+\label{sec:discussion}
 
-% TODO: why perplexity-based token removal underperforms a dumb baseline here
-% (fragmentation, names/numbers, 3B target model, short prompts, question not
-% used for budget allocation); what this implies about the paper's claims.
+Why does a method that beats positional baselines in its paper lose to one here?
+Five explanations are consistent with our data, and they are not exclusive.
+
+\textbf{Perplexity is not question relevance.} LLMLingua ranks a token by how
+surprising it is to a small language model. In a 7k-token article about a paper a
+year is highly predictable and a bibliographic phrase is not, so the year is a
+deletion candidate even when the question asks for it; the date and distractor
+cases above are exactly this failure. Part 4 supplies the question to the ranker,
+which is why it recovers part of the loss, but a question-conditioned ranker still
+cannot know that \emph{2023} rather than \emph{March} is the token that will be
+scored.
+
+\textbf{Truncation destroys structure gracefully; token deletion does not.}
+Removing the middle of a document leaves two contiguous, grammatical passages.
+Removing individual tokens leaves a fragmented prompt in which function words,
+prepositions and agreement markers are missing. A 3B model is more sensitive to
+that than the 100B-class models evaluated in the paper, and fragments also make
+copying an exact span harder, which is what the Exact Match collapse in
+Table~\ref{tab:main} shows.
+
+\textbf{The redundancy assumption is weaker here.} LLMLingua's motivating
+experiments use few-shot prompts with many demonstrations and heavily overlapping
+retrieved passages, where a large fraction of tokens really is redundant. A
+single LongBench document was selected because it contains the answer, so at
+$4\times$ compression the method is no longer deleting redundancy; it is deleting
+evidence.
+
+\textbf{The budget controller is bypassed.} In Part 3 the document is cut into
+1\,400-token chunks that are compressed separately, so a globally allocated budget
+is impossible in 98.7\% of rows. Part 4 removes that restriction and gains
+0.0444--0.0587, a large fraction of the total deficit, for a change that does not
+touch the scoring model at all.
+
+\textbf{The efficiency claim is conditional.} The paper compares against
+generation with very long prompts on large models. On a 3B model with a
+7k-token prompt, generation takes 9.4\,s and a 2.7B compressor over the same text
+costs 7.5\,s; the margin that makes compression profitable in the paper is not
+present at this scale.
+
+None of this contradicts the published numbers. It shows that the ordering they
+imply is conditional on prompt length, task type, target-model size and compressor
+efficiency, and that on a small target model with a short single-document task the
+conditions fail.
 
 \subsection{Threats to Validity}
-(text text text)
+\label{sec:threats}
 
-% TODO: per-part hardware differences; stale results_same_machine export;
-% differing verdict for Uncompressed -> Head-tail 2x between runs; single
-% dataset, single model, single head_frac; Part 4 not in the rerun.
+\textbf{Internal.} The Part 3 to Part 4 comparison confounds five changes:
+compressor size, question-aware ranking, sentence-level filtering, the removal of
+chunking, and 4-bit weights. The measured $+0.0444$/$+0.0587$ is an upper bound on
+the effect of de-chunking, and we describe it as one; a same-compressor ablation
+with chunking switched on and off would settle it and was not run. Part 2 fixes
+\texttt{head\_frac} at 0.5 without tuning, so truncation may be better or worse
+than the value we report; it is a baseline, not a tuned method.
+
+\textbf{Statistical.} $n=150$ is the entire official split, which limits
+precision: the narrowest interval in Table~\ref{tab:paired} excludes zero by
+0.013, and in the rerun the truncation-$2\times$ contrast excludes it by 0.003.
+The significance verdict for uncompressed $\rightarrow$ truncation $2\times$
+flips between the two runs ($-0.0231$, $[-0.057, +0.011]$ per-part;
+$-0.0360$, $[-0.069, -0.003]$ in the rerun), so we describe that loss as
+small and marginal rather than as established or as absent. Greedy decoding is not bit-exact across
+GPUs: 12 of 150 uncompressed answers differ word for word between the two runs,
+with a 0.0054 difference in mean F1, and we treat that as the noise floor of any
+F1 comparison here.
+
+\textbf{Measurement.} Per-part latencies come from four machines and are reported
+only for transparency; taken at face value they would suggest, for instance, that
+truncation-$2\times$ generation (5.79\,s) is slower than uncompressed generation
+(4.63\,s), which is an artefact of the T4 versus the RTX 3060. Every latency
+conclusion uses the rerun, which covers Parts 1--3 only, so Part 4's seconds are
+comparable with nothing else. Only the aggregated rerun table was preserved: a
+later export overwrote its per-sample rows with a copy of the per-part files, so
+the rerun's paired intervals cannot be re-derived from the repository, although
+its quality replication can be checked against the per-part files.
+
+\textbf{External and construct.} One dataset, one task type, one language, one
+target model, two ratios. \MFQA{} answers are short spans, which
+favours both truncation and exact-match scoring and may understate compression on
+generative tasks. Exact Match and token F1 ignore semantic equivalence, so a
+correct paraphrase is scored zero. The \texttt{docs} field is empty in all result
+files, so scores cannot be recomputed from the stored rows without re-running the
+pipeline.
 
 % ---------------------------------------------------------------------------
 \section{Conclusion}
-(text text text)
 
 \subsection{Summary of Findings}
-(text text text)
+\label{sec:summary}
 
-% TODO: answer RQ1--RQ3 in three sentences, each with its number.
+\textbf{RQ1.} Accuracy decreases monotonically with the compression ratio in all
+three compressed families; the slope differs by method, from a 5.4\%/15.7\%
+relative F1 loss for truncation to 38.9\%/48.6\% for LLMLingua and 28.5\%/35.0\%
+for LLMLingua-Enhanced.
+
+\textbf{RQ2.} No. At the same whole-prompt token budget LLMLingua scores 0.1440
+($2\times$) and 0.1414 ($4\times$) F1 below plain head-and-tail truncation.
+Removing chunking and conditioning the ranker on the question recovers 0.0444 and
+0.0587 --- roughly a third to two fifths of the deficit --- but LLMLingua-Enhanced
+still trails truncation by 0.0995 and 0.0827, with intervals that exclude zero.
+
+\textbf{RQ3.} Only for truncation. It reduces end-to-end latency by 43.6\% and
+65.7\% because it costs nothing to apply; LLMLingua increases it by 43.9\% and
+14.1\%, because the compressor's 6.7--7.5\,s per sample exceeds the 3.4--5.4\,s it
+saves in generation.
 
 \subsection{Lessons Learned}
-(text text text)
+\label{sec:lessons}
 
-% TODO: about reproduction, about evaluation contracts, about measuring
-% end-to-end cost rather than token counts.
+\textbf{An evaluation contract is worth more than a method.} The most useful
+artefact in this project was the frozen harness: four small files holding one
+sample index, one prompt renderer and one metric implementation. They are the only
+reason the four pipelines produced numbers that can be compared. The failure mode
+they prevent is subtle: two implementations of the same dataset can both be
+correct and still produce incomparable numbers by tokenizing differently or by
+normalising answers differently.
+
+\textbf{Measure the quantity you claim to improve.} Token reduction and cost are
+not the same thing. Our working intuition was that compression saves money; the
+measurement showed that the compressor is itself a model that reads the whole
+prompt, and that on one GPU it can cost more than it saves. A claim about
+efficiency needs an end-to-end number from one machine, not a token count.
+
+\textbf{A negative result is publishable work.} Two of our contributions are
+negative: LLMLingua loses to a non-semantic baseline, and the most obvious
+explanation for the loss accounts for less than half of it. Diagnosing that
+required building the fourth variant, which is what turned an under-performing
+reproduction into a result.
+
+\textbf{Checkpoint everything.} The compression stages take on the order of an
+hour on a free GPU. Appending one record per finished unit and skipping completed
+ids on restart means a lost session costs only the work since the last record,
+not the whole run, and Colab sessions are lost routinely.
+
+\textbf{Record provenance per row.} Dtype, device, chunking and tokenizer are not
+metadata; they change the numbers. Because every row carries them we could audit
+comparability (150/150 ids, no duplicates, 296/300 chunked versus 0/300) instead
+of trusting that the code had been run as documented.
 
 \subsection{Problems and Difficulties}
-(text text text)
+\label{sec:problems}
 
-% TODO: gated model access; Windows console encoding crash at sample 87; the
-% compressor context limit forcing chunking; Colab T4 OOM forcing chunked
-% prefill; the Windows commit-limit failure that blocked Part 4 locally.
+\textbf{Gated weights.} \LlamaGated{} is licence-gated
+and the download fails without an accepted licence, which blocked the first
+attempt at running the baseline. We resolved it by loading the weight-identical
+mirror \LlamaMirror{}, and this report states the
+substitution instead of hiding it behind the canonical name.
+
+\textbf{An encoding crash at sample 87.} The baseline run died on sample 87 of
+150 on Windows: the console code page (cp950) could not encode a character in the
+retrieved context, and the process aborted while printing progress, leaving a
+partially written checkpoint. The fix was to force UTF-8 output and make logging
+fail-safe, but the lesson is that a progress print can terminate a six-hour job.
+
+\textbf{The compressor's context limit.} \PhiTwo{} has 2\,048 positions and
+the mean prompt is 6\,967 tokens. Rather than abandon the reproduction we cut
+documents into 1\,400-token chunks, which made the run possible and made Part 3 a
+chunked reproduction. That decision is the origin of Part 4: we could not claim to
+have reproduced the method without establishing what chunking cost.
+
+\textbf{Out of memory on a T4.} Free Colab sessions give 15\,GB and expire without
+warning. Long prompts exhausted attention memory, which forced chunked prefill,
+the 4-bit compressor load for Part 4, and the checkpoint-and-resume design; two
+full sessions were lost to disconnects before that design was in place.
+
+\textbf{Windows commit limits.} The local machine could not commit the 2.9\,GB
+Part 4 compressor shard to RAM, so the stage failed repeatedly with
+\texttt{WinError 1455} until it was moved to Colab. Retrying with
+\texttt{disable\_mmap} helps when the pagefile is merely small, but it cannot
+create memory the system does not have.
+
+\textbf{Version drift between libraries.} \texttt{llmlingua} 0.2.2 and Llama 3.2
+require incompatible \texttt{transformers} releases. Part 3 lives with this by
+running two environments, and Part 4 writes a cache-compatibility shim. Neither
+solution is elegant, and both are the kind of integration work that papers do not
+describe and a reproduction must solve.
 
 \subsection{Limitations}
-(text text text)
+\label{sec:limitations}
 
-% TODO: scope and measurement limits, one bullet per limitation.
+\begin{itemize}
+  \item \textbf{One dataset, one task.} All results are from
+  \MFQA{} single-document, short-answer QA. Nothing here
+  constrains multi-document, generative or multi-hop settings.
+  \item \textbf{One target model.} A 3B instruction-tuned model in
+  \texttt{float16}. Larger models may tolerate fragmented prompts better, which
+  would change the ranking.
+  \item \textbf{Two ratios, untuned baselines.} $2\times$ and $4\times$ only;
+  \texttt{head\_frac} fixed at 0.5; no sweep of compressor size or of the
+  sentence-filter threshold.
+  \item \textbf{Confounded Part 4.} The gain over Part 3 is an upper bound on the
+  de-chunking effect, not a measurement of it.
+  \item \textbf{Partial latency coverage.} RQ3 is answered for Parts 1--3 only;
+  Part 4 has no same-environment rerun.
+  \item \textbf{Metric scope.} Exact Match and token F1 do not measure fluency,
+  faithfulness or semantic correctness, and the 64-token cap truncates any longer
+  answer before scoring.
+  \item \textbf{Stored rows are not self-sufficient.} Contexts are not stored, so
+  results cannot be re-scored without re-running the pipeline.
+\end{itemize}
 
 \subsection{Future Work}
-(text text text)
+\label{sec:future}
 
-% TODO: answer-position failure analysis; LongLLMLingua-style reordering;
-% larger target models; more ratios and datasets; latency measurement on one
-% common GPU for all four parts.
+\begin{itemize}
+  \item \textbf{A same-compressor chunking ablation.} Run \PhiTwo{} with and
+  without 1\,400-token chunking, and \QwenOne{} likewise, so
+  that the effect of chunking is separated from the other Part 3/Part 4
+  differences. This is the single experiment that would convert our upper bound
+  into a measurement.
+  \item \textbf{Systematic position analysis.} We planned to relate F1 to the
+  position of the answer in the document and implemented only the qualitative
+  cases. A per-sample position statistic would test whether truncation's loss is
+  concentrated where \citet{liu-etal-2024-lost} predict, and it is the natural
+  bridge between Parts 2 and 4.
+  \item \textbf{Document reordering and subsequence recovery.} LongLLMLingua
+  \citep{jiang-etal-2024-longllmlingua} claims additional gains from reordering
+  documents and recovering dropped subsequences. Both are cheap to add on top of
+  Part 4 and would test whether the remaining gap to truncation closes.
+  \item \textbf{Larger target models and more ratios.} Repeat with a 7--8B model
+  and with $1.5\times$ and $8\times$ to see whether the ordering is monotone in
+  model scale and in compression ratio.
+  \item \textbf{One machine for everything.} A single GPU large enough for all
+  four compressors would make every latency number in this report comparable and
+  would let the efficiency claim be tested across parts, not only within
+  Parts 1--3.
+  \item \textbf{Restore the stored context.} Backfilling \texttt{docs} with
+  \texttt{-{}-save-context} would make the result files independently re-scorable
+  and would allow error analysis without a GPU.
+\end{itemize}
 
 % ---------------------------------------------------------------------------
 \section{Use of Generative AI}
-(text text text)
+\label{sec:ai}
 
-% TODO: which tools were used for what (literature organisation, drafting,
-% formatting, code assistance), and how numbers and claims were verified.
+Generative AI tools were used to assist with literature organisation, drafting,
+and formatting. Numerical claims were checked against the cited papers. During
+implementation, all code changes, experimental configurations, and reported
+results were reviewed and verified by the group before submission.
 
 % ---------------------------------------------------------------------------
 % References: carried over from report/acl_latex.tex. Keep only the entries that
