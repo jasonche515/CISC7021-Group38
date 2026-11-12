@@ -1,0 +1,5 @@
+{
+  "torch": "2.15.0",
+  "transformers": "4.46.3",
+  "llmlingua": "0.2.2"
+}

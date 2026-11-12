@@ -550,10 +550,32 @@ def run_evaluate(args: argparse.Namespace) -> int:
                 "evaluation_latency": evaluation_latency,
                 "total_latency": source["compression_latency"]
                 + evaluation_latency,
-                "method": f"llmlingua_{source['target_compression_ratio']}x",
+                "method": (
+                    source["method"]
+                    if source.get("method", "llmlingua") != "llmlingua"
+                    else f"llmlingua_{source['target_compression_ratio']}x"
+                ),
                 "compressor_model": source["compressor_model"],
                 "model": args.model,
             }
+            if source.get("preprocessing_version"):
+                row["compression_settings"] = {
+                    key: source[key]
+                    for key in (
+                        "preprocessing_version", "context_unit_tokens",
+                        "context_budget", "iterative_size", "num_context_units",
+                        "selected_context_indices", "source_text_preserved",
+                        "use_context_level_filter", "use_sentence_level_filter",
+                        "use_token_level_filter", "question_compressed",
+                        "condition_in_question", "distribution_alignment_trained",
+                        "rank_method", "recipe", "compressor_revision",
+                        "pretrained_alignment", "instruction_question_policy",
+                        "paper_component_rates_implemented", "context_budget_audit",
+                        "component_token_lengths", "coarse_context_budget",
+                        "compressor_loading_verified", "compressor_lm_head_key_remapped",
+                    )
+                    if key in source
+                }
             append_jsonl(sink, row)
             done.add(key)
             new_rows += 1
@@ -569,7 +591,11 @@ def run_evaluate(args: argparse.Namespace) -> int:
     rows = load_jsonl(args.jsonl)
     payload = {
         "stage": "evaluation",
-        "method": "llmlingua",
+        "method": (
+            compressed_rows[0].get("method", "llmlingua")
+            if len({row.get("method", "llmlingua") for row in compressed_rows}) == 1
+            else "llmlingua"
+        ),
         "dataset": "multifieldqa_en",
         "model": args.model,
         "device": target.device,

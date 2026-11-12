@@ -1,0 +1,18 @@
+{
+  "target": "report/final.tex",
+  "source_sha256": "7a1991be0428f04204089ad82d970b1e1cf8c289d5d155cca4c27592959ddc05",
+  "passed": [
+    "seven historical rows",
+    "five same-environment rows",
+    "twelve paired contrast rows",
+    "corrected prompt median",
+    "environment balance",
+    "unique labels",
+    "all references and citations",
+    "self-contained TeX plots",
+    "supplement separately labelled"
+  ],
+  "pdf_compiled": false,
+  "desktop_compile_verified_sha256": "7a1991be0428f04204089ad82d970b1e1cf8c289d5d155cca4c27592959ddc05",
+  "pdf_visual_layout_verified": false
+}
