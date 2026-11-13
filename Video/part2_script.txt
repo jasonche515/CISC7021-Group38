@@ -1,9 +1,0 @@
-Hi everyone, I'm Kin Meng, and I'll talk about Part 2, the truncation baseline.
-
-The idea is very simple. We keep the start of the document, keep the end, and cut the middle. The question and the instructions are never touched. At 2x we keep half of the document, and at 4x we keep a quarter. The cutting step doesn't need any extra model, so it costs almost nothing
-
-Now the results. Without compression, we get an F1 of 0.43. With 2x truncation, it's 0.41, so we lose very little. With 4x, it's 0.36. But look at the speed. On the same GPU, each question goes from 9.4 seconds to 5.3 seconds at 2x, and 3.2 seconds at 4x. That's 44 and 66 percent faster.
-
-So why does 4x lose more? We checked where the answer sits in the document. When the answer is in the part we keep, F1 is around 0.47 to 0.49. When the answer is in the part we cut, it falls to around 0.2. At 2x, about 21 percent of answers get cut. At 4x, it's 37 percent. So most of the loss simply comes from cutting out the answer.The small lines show how uncertain each average is. They don't overlap, so the gap is real.
-
-This is just a pattern, not proof, but it shows a simple baseline is hard to beat. Thank you.
