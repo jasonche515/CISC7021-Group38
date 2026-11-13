@@ -8,6 +8,11 @@ against [project.md](./project.md) and [plan.md](./plan.md) on 2026-11-07 and
 re-checked after Part 4 on 2026-11-08. All numbers in this file were recomputed
 from the result JSON files, not copied from the READMEs.
 
+Last updated 2026-11-13: the final report is written ([`report/`](./report)), the
+slide deck is built in Canva ([link in `PPT.md`](./PPT.md)), and [`Video/`](./Video)
+holds one recorded segment plus the narration and Q&A scripts. The experiment
+numbers below are unchanged.
+
 Two result sets now exist: the **per-part runs** on four different machines
 (§7.1) and the **same-environment rerun** produced by `run_all.py`, which covers
 Parts 1–3 only (§7.2). Part 4 has no common-hardware counterpart at all, so its
@@ -29,10 +34,30 @@ documents; every latency claim must come from §7.2.
 | Requirement | Weight | Due | State |
 | --- | ---: | --- | --- |
 | Task 1 — Review report | 15% | 10 Oct (passed) | ✅ Done |
-| Task 2 — Final report (ACL two-column) | 30% | 17 Nov 23:55 | ⚠️ Member 3 and Member 4 contributions drafted; group report not assembled |
-| Task 3 — Pre-recorded presentation | 30% (with Task 4) | 17 Nov | ⚠️ 1 of 4 items ready |
-| Task 4 — In-class presentation | — (shared with Task 3) | 17 / 24 Nov | ⬜ Not started |
+| Task 2 — Final report (ACL two-column) | 30% | 17 Nov 23:55 | ✅ Written and compiled — [`report/final_report.tex`](./report/final_report.tex) · [`report/final_report.pdf`](./report/final_report.pdf) |
+| Task 3 — Pre-recorded presentation | 30% (with Task 4) | 17 Nov | ⚠️ Canva deck done ([link in `PPT.md`](./PPT.md)); Part 2 video recorded; scripts for Parts 1–2 and Q&A written — merge into one 5-minute video still pending |
+| Task 4 — In-class presentation | — (shared with Task 3) | 17 / 24 Nov | ⚠️ Deck built in Canva; 14:00 submission and rehearsal still pending |
 | System implementation (the four parts) | 20% | 17 Nov | ✅ Done |
+
+> 回顧報告、期末報告與四部分實作均已完成，期末報告原始碼在 `report/` 下（
+> `final_report.tex`，另有修訂版 `final_report_revised.tex`），已編譯出 PDF。
+> 投影片已在 Canva 完成，連結寫在 `PPT.md`；影片部分只錄好了 Part 2 一段，
+> Part 1、2 的講稿與 Q&A 準備稿放在 `Video/`，三段串接成 5 分鐘影片仍待完成。
+> 課堂報告需在 11 月 17 日 14:00 前提交同一份 Canva 簡報。
+
+Deliverable locations:
+
+| Deliverable | Path |
+| --- | --- |
+| Final report source | [`report/final_report.tex`](./report/final_report.tex) · revised [`report/final_report_revised.tex`](./report/final_report_revised.tex) |
+| Final report PDF | [`report/final_report.pdf`](./report/final_report.pdf) · [`report/Revised_report/report.pdf`](./report/Revised_report/report.pdf) |
+| Slides | Canva deck, link at the top of [`PPT.md`](./PPT.md); slide-by-slide outline and timings also in that file |
+| Video | [`Video/Part2 truncation baseline.mp4`](./Video) (Part 2); Part 1 and 3 not yet recorded |
+| Scripts | [`Video/part1_script.md`](./Video/part1_script.md) · [`Video/part2_script.md`](./Video/part2_script.md) · [`Video/Q&A.md`](./Video/Q&A.md) |
+
+> 交付物位置：報告 tex 與 PDF 在 `report/`；簡報在 Canva，連結見 `PPT.md`
+> 頂部；影片目前只有 Part 2 的 MP4，其餘兩段未錄；講稿與 Q&A 稿共三份，在
+> `Video/`。
 
 ### 1.1 Experiment and programming audit (2026-11-08)
 
@@ -46,14 +71,14 @@ documents; every latency claim must come from §7.2.
 | Accuracy–compression plotting code and figure | [plot script](./part4_llmlingua_enhanced/plot_accuracy_compression.py) · [figure](./figures/accuracy_compression_tradeoff.pdf) | ✅ Complete for Parts 1–4 — reads all five result files and overlays seven settings |
 | Reproducible qualitative-case analysis | [script](./part3_llmlingua/build_qualitative_cases.py) · [cases](./part3_llmlingua/qualitative_cases.md) | ✅ Complete |
 | One generated table covering all seven settings | [make_table.py](./part4_llmlingua_enhanced/make_table.py) · [table](./part4_llmlingua_enhanced/results_table.md) | ✅ 7 rows and 10 paired contrasts from Parts 1–4; `--rerun-dir results_same_machine` switches to the rerun |
-| Systematic answer-position analysis | Part 2 plan | ⚠️ Partial — one qualitative example exists, but no systematic implementation |
+| Systematic answer-position analysis | [add_answer_position.py](./part2_truncation/add_answer_position.py) · [CSV](./report/answer_position_analysis.csv) · [stats](./report/answer_position_stats.tex) | ✅ Complete — every truncated sample classified as kept / partial / dropped, with F1 per zone and three figures |
 | Cross-method latency comparison | [run_all.py](./run_all.py) · [results_same_machine/](./results_same_machine) | ✅ Complete for Parts 1–3 — all five of those settings rerun on one GPU; Part 4 has no counterpart |
 | Part 2 result documentation | [part2 README](./part2_truncation/README.md) | ✅ Placeholders filled from the per-part summaries |
 
 > 四個部分的程式與完整結果均已完成（Part 4 共 300 筆、完全沒有切塊），Member 3
-> 的圖表與可重現案例分析已完成，七列總表與同機器延遲比較亦已就緒。剩下的編程
-> 工作有三項：Part 2 的系統化答案位置分析、把 Part 4 加進 accuracy–compression
-> 圖，以及為 Part 4 補一組同硬體延遲量測（目前沒有）。
+> 的圖表與可重現案例分析已完成，七列總表、同機器延遲比較與 Part 2 的系統化答案
+> 位置分析亦已就緒。唯一仍未補上的是 Part 4 的同硬體延遲量測（其壓縮器無法在
+> 單一 3060 上載入）。
 
 **Deadline trap:** "Implementation & All Materials" is listed as *17 November
 2026, 12:00 AM*, which is midnight at the **start** of 17 Nov — effectively the
@@ -66,25 +91,29 @@ end of 16 Nov. That is roughly 24 hours earlier than the report deadline.
 
 | Required content | Where | State |
 | --- | --- | --- |
-| List of papers read, with references | [acl_latex.tex](./acl_latex.tex) §Papers Reviewed | ✅ |
+| List of papers read, with references | [report/review.tex](./report/review.tex) §Papers Reviewed | ✅ |
 | Main methodologies previously used | §Existing Methodologies | ✅ |
 | Experimental results of reviewed works | §Experimental Results in Previous Work | ✅ |
 | Project idea and preliminary strategy | §Research Gap, §Proposed Project | ✅ |
 | Tentative schedule | §Tentative Schedule | ✅ |
-| Two-column ACL format, submitted as PDF | [CISC7021_course_project_review_report.pdf](./CISC7021_course_project_review_report.pdf) | ✅ |
+| Two-column ACL format, submitted as PDF | [report/review.tex](./report/review.tex) · [report/review.pdf](./report/review.pdf) | ✅ |
 
 > 第一階段回顧報告的五項內容全部齊備，且已有 ACL 兩欄格式 PDF，此項已完成。
 
 ## 3. Phase 2 — Final report (Task 2, 30%)
 
-`project.md` requires at least three sections. The group report has not been
-assembled, but a Member 3 methods/results contribution has been drafted.
+`project.md` requires at least three sections. All three are written in the
+final report, which lives in [`report/`](./report) as
+[`final_report.tex`](./report/final_report.tex) with a compiled
+[`final_report.pdf`](./report/final_report.pdf); the later revision is
+[`final_report_revised.tex`](./report/final_report_revised.tex), also compiled to
+[`report/Revised_report/report.pdf`](./report/Revised_report/report.pdf).
 
 | Required section | Content required | State |
 | --- | --- | --- |
-| Introduction | Motivation, achievements, brief literature review, conclusions drawn | ⬜ |
-| Detailed Description | Design, implementation, testing, evaluation, diagrams / flowcharts | ⬜ |
-| Conclusion | Lessons learned, problems and difficulties, future improvements | ⬜ |
+| Introduction | Motivation, achievements, brief literature review, conclusions drawn | ✅ §1, with research questions and contributions |
+| Detailed Description | Design, implementation, testing, evaluation, diagrams / flowcharts | ✅ §2–§3, including a system-overview flowchart and result tables |
+| Conclusion | Lessons learned, problems and difficulties, future improvements | ✅ §4, plus a Use of Generative AI section |
 
 Supporting evidence that already exists for the main comparison:
 
@@ -95,47 +124,60 @@ Supporting evidence that already exists for the main comparison:
 | LLMLingua 2x and 4x, 150/150 each (300 rows) | [results_member3.json](./part3_llmlingua/results_member3.json) | ✅ |
 | LLMLingua-enhanced 2x and 4x, 150/150 each (300 rows, 0 chunked) | [results_member4.json](./part4_llmlingua_enhanced/results_member4.json) | ✅ |
 | Shared sample index, prompt template, metrics | [shared/](./shared) | ✅ |
-| Combined table, all seven settings | [Part 4 table](./part4_llmlingua_enhanced/results_table.md) · [same-environment numbers](./results_same_machine/README.md) | ✅ Part 1–4 with paired contrasts; the `results_same_machine` export remains stale for Part 1–3 |
+| Combined table, all seven settings | [Part 4 table](./part4_llmlingua_enhanced/results_table.md) · [same-environment table](./results_same_machine/results_table.md) | ✅ Part 1–4 with paired contrasts; the `results_same_machine` export remains stale for Part 1–3 |
 | Accuracy–compression figure | [PNG](./figures/accuracy_compression_tradeoff.png) · [PDF](./figures/accuracy_compression_tradeoff.pdf) | ✅ All seven settings from Parts 1–4 |
 | Reproducible qualitative examples | [Markdown](./part3_llmlingua/qualitative_cases.md) · [CSV](./part3_llmlingua/qualitative_cases.csv) | ✅ |
-| Member 3 report contribution | [part3 README](./part3_llmlingua/README.md) · [qualitative cases](./part3_llmlingua/qualitative_cases.md) | ⚠️ Narrative lives inside the Part 3 README and the case write-up; no standalone `final_report_contribution.md` was ever created |
-| Member 4 report contribution | [part4 README](./part4_llmlingua_enhanced/README.md) | ✅ Methods, results, cost and limitations sections are written; still needs merging into the group report |
+| Member 3 report contribution | [part3 README](./part3_llmlingua/README.md) · [qualitative cases](./part3_llmlingua/qualitative_cases.md) | ✅ Merged into the final report |
+| Member 4 report contribution | [part4 README](./part4_llmlingua_enhanced/README.md) | ✅ Merged into the final report |
 
-> 小組總報告尚未組裝，但 Member 3 與 Member 4 的方法與結果文字已有草稿，分別
-> 見於 Part 3 的 README、質性案例檔與 Part 4 的 README（先前指向的
-> `final_report_contribution.md` 並不存在）。實驗證據、七個設定的合併表格與
-> 質性案例均已齊備；accuracy–compression 圖仍只含 Part 1–3。
+> 期末報告已組裝完成，Member 3 與 Member 4 的方法與結果已在報告內。實驗證據、
+> 七個設定的合併表格、accuracy–compression 圖（已含 Part 1–4）與質性案例全部
+> 齊備。
 
-Blocking gaps for the report (details in §6):
+The answer-position analysis planned for RQ2 is no longer a gap: `locate_answer`
+in [run_truncation.py](./part2_truncation/run_truncation.py) and
+[add_answer_position.py](./part2_truncation/add_answer_position.py) classify every
+truncated sample as kept / partial / dropped, and the results are in
+[answer_position_analysis.csv](./report/answer_position_analysis.csv) with three
+figures and [answer_position_stats.tex](./report/answer_position_stats.tex).
 
-| # | Gap | Blocks which section |
+| Ratio | Answer kept in prompt | Answer dropped | ΔF1 |
+| --- | --- | --- | ---: |
+| 2x | n = 101, F1 0.474 [0.416, 0.531] | n = 31, F1 0.226 [0.154, 0.311] | −0.248 |
+| 4x | n = 74, F1 0.491 [0.419, 0.564] | n = 56, F1 0.201 [0.149, 0.255] | −0.290 |
+
+Deviations still disclosed inside the report rather than fixed:
+
+| # | Issue | How the report handles it |
 | --- | --- | --- |
-| 1 | Systematic answer-position failure analysis not implemented; only one reproducible qualitative example exists | Planned contribution for RQ2 / position bias |
-| 2 | The committed `results_same_machine/results_table.md` was generated from the per-part files, so it does not match the JSON files beside it | Detailed Description (results table) |
-| 3 | The significance verdict for Uncompressed → Head-tail 2x differs between the two runs | Detailed Description / Conclusion |
+| 1 | The committed `results_same_machine/results_table.md` was generated from the per-part files | Disclosed in Threats to Validity; latency is quoted from the rerun JSON, not from that file |
+| 2 | The significance verdict for Uncompressed → Head-tail 2x differs between the two runs | Both intervals are quoted and the loss is described as small and marginal |
+| 3 | `docs` is empty in every result file | Recorded as a known deviation from the `plan.md` interface, applied equally to all four parts |
 
 ## 4. Phase 2 — Pre-recorded presentation (Task 3, part of 30%)
 
 | Required item | State |
 | --- | --- |
-| Slides file, 5 minutes, all members participate | ⬜ Missing |
+| Slides file, 5 minutes, all members participate | ✅ 11-slide deck built in Canva; link at the top of [`PPT.md`](./PPT.md), which also holds the slide-by-slide outline and per-slide timings |
 | Source code zip (optional) | ⚠️ Code ready in repo, zip not built |
 | Final results | ✅ Five per-part result files (Parts 1–4) plus the same-environment rerun and a 7-row combined table |
-| Presentation video uploaded to a public site + shared form | ⬜ Missing |
+| Presentation video uploaded to a public site + shared form | ⚠️ Part 2 recorded ([`Video/Part2 truncation baseline.mp4`](./Video)); Parts 1 and 3 not yet recorded, so no merged 5-minute video and no upload yet |
 
-> 投影片、影片與共用表單均未做；原始碼已在 repo 內，只需打包成 zip；四個部分的
-> 結果檔已齊（Part 1 一份、Part 2 兩份、Part 3 一份、Part 4 一份），另有同環境
-> 重跑結果與七列合併表格。
+> 簡報已在 Canva 做好（11 頁，逐頁內容與時間分配見 `PPT.md`）。影片只完成了
+> Part 2 一段，Part 1 與 Part 3 尚未錄製，因此尚未串接成 5 分鐘影片，也未上傳
+> 公開網站或填表單。三段講稿與 Q&A 稿分別為 `Video/part1_script.md`、
+> `Video/part2_script.md`、`Video/Q&A.md`。原始碼仍在 repo 內，zip 未打包。
 
 ## 5. Phase 2 — In-class presentation (Task 4)
 
 | Required item | State |
 | --- | --- |
-| PowerPoint submitted by 14:00, 17 Nov | ⬜ Missing |
-| 4 min talk + 1 min Q&A by one representative | ⬜ Not prepared |
+| PowerPoint submitted by 14:00, 17 Nov | ⚠️ Deck built in Canva ([link in `PPT.md`](./PPT.md)), submission not yet made |
+| 4 min talk + 1 min Q&A by one representative | ⚠️ Content ready — [`Video/part1_script.md`](./Video/part1_script.md), [`Video/part2_script.md`](./Video/part2_script.md) and [`Video/Q&A.md`](./Video/Q&A.md) cover the talk and the expected questions; rehearsal still pending |
 | Mandatory attendance (deduction if absent) | ⬜ Pending |
 
-> 課堂報告的 PPT 需於 11 月 17 日 14:00 前提交，簡報與出席均未處理。
+> 課堂報告用的簡報已在 Canva 完成，只需在 11 月 17 日 14:00 前提交；
+> 講稿與 Q&A 準備稿已寫好可直接排練，出席則待當日。
 
 ## 6. Internal commitments from plan.md
 
@@ -147,7 +189,7 @@ Blocking gaps for the report (details in §6):
 | EM and token-level F1 | M1 | ✅ `shared/metrics.py` |
 | Head-and-tail at 2x and 4x | M2 | ✅ Both ratios, 150/150 |
 | Achieved compression ratio recorded | M2 | ✅ Document 2.000 / 4.000, prompt 1.969 / 3.820 |
-| **Failure analysis when the answer sits in the middle** | M2 | ⚠️ **Partial** — one reproducible qualitative case is at 65.1%, but `run_truncation.py` has no systematic answer-position logic |
+| **Failure analysis when the answer sits in the middle** | M2 | ✅ `locate_answer` in [run_truncation.py](./part2_truncation/run_truncation.py) + [add_answer_position.py](./part2_truncation/add_answer_position.py); [CSV](./report/answer_position_analysis.csv), [stats table](./report/answer_position_stats.tex), three figures |
 | LLMLingua at 2x and 4x | M3 | ✅ Both ratios, 150/150 |
 | Two-stage compress / evaluate to avoid OOM | M3 | ✅ Separate processes |
 | Accuracy–compression curve | M3 / M4 | ✅ [PNG](./figures/accuracy_compression_tradeoff.png) · [PDF](./figures/accuracy_compression_tradeoff.pdf) — all three methods, generated by [Part 4 plot script](./part4_llmlingua_enhanced/plot_accuracy_compression.py) |
@@ -156,9 +198,9 @@ Blocking gaps for the report (details in §6):
 | Question-aware single-pass compression verified | M4 | ✅ `condition_on_question=true`, `rank_method=longllmlingua`, `max_num_compression_chunks=1` in `results_member4_compressed.json` |
 | Combined table answering RQ1–RQ3 | All | ✅ [Part 4 make_table.py](./part4_llmlingua_enhanced/make_table.py) covers all seven settings; latency from [run_all.py](./run_all.py) for Parts 1–3 |
 
-> 四個部分、Member 3 圖表、質性案例、七列總表與同機器延遲比較均已交付。尚未
-> 完成的功能性整合只剩三項：Member 2 的系統化答案位置分析（目前僅有個別案例）、
-> 把 Part 4 加進 accuracy–compression 圖，以及 Part 4 的同硬體延遲量測。
+> 四個部分、Member 3 圖表、質性案例、七列總表、同機器延遲比較、Member 2 的系統化
+> 答案位置分析，以及期末報告均已交付。plan.md 的功能承諾至此全部完成；唯一未完成
+> 的是 Part 4 的同硬體延遲量測（Part 4 壓縮器無法在單一 3060 上載入）。
 
 ## 7. Comparability audit (verified 2026-11-08)
 
@@ -221,8 +263,8 @@ single `transformers` install, so the absolute second counts become comparable.
 Part 4 is deliberately excluded: its compressor needs a different model family
 that could not be loaded on this host, so no Part 4 latency number belongs in
 this table. Source:
-[results_same_machine/](./results_same_machine), documented in
-[its README](./results_same_machine/README.md).
+[results_same_machine/](./results_same_machine), summarised in
+[its results table](./results_same_machine/results_table.md).
 
 | Method | n | EM | F1 | Mean prompt tokens | Mean generation s | Mean compression s | Mean total s |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -271,7 +313,7 @@ so greedy decoding is not bit-exact across GPUs.
 | 3 | 🟢 Resolved | `make_table.py` cannot read `results_member3.json` (summary nested under `2x` / `4x`) | ✅ [part4 make_table.py](./part4_llmlingua_enhanced/make_table.py) rewritten as a standalone reader for all seven settings and 10 paired contrasts |
 | 4 | 🟢 Resolved | 6 unfilled placeholders in [part2_truncation/README.md](./part2_truncation/README.md) (`[X]`, `[150]`, `[0.0733]`, `[版本]`) | ✅ Filled from the per-part summaries |
 | 5 | 🟠 Medium | The two runs disagree on whether the Uncompressed → Head-tail 2x drop is significant | Quote both intervals and describe the 2x loss as marginal |
-| 6 | 🟡 Low | Systematic answer-position analysis missing (planned Part 2 contribution); one qualitative example is available | Implement the systematic analysis or limit the report to the observed case |
+| 6 | 🟢 Resolved | Systematic answer-position analysis was missing (planned Part 2 contribution) | ✅ `locate_answer` + [add_answer_position.py](./part2_truncation/add_answer_position.py) produce [the CSV](./report/answer_position_analysis.csv) and [stats table](./report/answer_position_stats.tex); at 2x, kept answers score 0.474 versus 0.226 when dropped |
 | 7 | 🟡 Low | `docs` field empty in all outputs, deviating from the `plan.md` interface | Record as a known deviation, or backfill with `--save-context` |
 | 8 | 🟡 Low | The committed [results_same_machine/results_table.md](./results_same_machine/results_table.md) was generated without `--rerun-dir`, so it still shows cross-machine numbers | Regenerate with `make_table.py --rerun-dir results_same_machine`, or keep the warning note at the top of the file |
 | 9 | 🟡 Low | `plan.md` still says Colab T4; actual runs are local GPU / Colab / M5 Pro / Colab CUDA | Leave `plan.md` as the original plan; describe the actual setup in the report |
@@ -280,18 +322,28 @@ so greedy decoding is not bit-exact across GPUs.
 | 12 | 🟠 Medium | Part 4's target numbers were not met (target 0.415 / 0.380, measured 0.3070 / 0.2794 at 2x / 4x) | Present this as a negative result for *this* implementation of the paper's claim, not as evidence against LLMLingua |
 | 13 | 🟢 Resolved | The [accuracy–compression figure](./figures/accuracy_compression_tradeoff.png) previously read only `results_member1/2/3.json`, so Part 4 was absent | ✅ [Part 4 plot script](./part4_llmlingua_enhanced/plot_accuracy_compression.py) reads all five result files and both `figures/` files were regenerated |
 
-## 9. What can be written now
+## 9. Where each section's evidence lives
 
-- **Introduction**: motivation, literature, and the three research questions — [acl_latex.tex](./acl_latex.tex) §Papers Reviewed / §Existing Methodologies can be condensed directly.
-- **Detailed Description — Method**: the shared harness, the four parts, and the comparability contract are fully documented in [README.md](./README.md), [part1](./part1_uncompressed/README.md), [part2](./part2_truncation/README.md), [part3](./part3_llmlingua/README.md), [part4](./part4_llmlingua_enhanced/README.md).
-- **Detailed Description — Results**: the metrics in §7, the seven-row combined table with 10 paired contrasts, the accuracy–compression figure covering all seven settings, and the reproducible qualitative cases are ready; only the systematic position analysis is missing. Note the figure and the case file still embed the per-part F1 values (0.2626 / 0.2207), not the rerun values; the figure now also carries Part 4 (0.3070 / 0.2794).
-- **Conclusion — difficulties**: the gated model, Windows console encoding crash at sample 87, the compressor context limit forcing chunking, the Colab T4 OOM forcing chunked prefill, and the Windows commit-limit failure that blocked Part 4 locally are all real, documented difficulties.
+The report is written; this section now records which artifact backs which
+section, so every claim can be re-derived.
 
-> 現在即可動筆：Introduction、方法、結果、七列總表（含 10 組配對檢定）、圖表、
-> 質性案例，以及困難與經驗都已有證據。技術上只剩系統化位置分析未做。撰寫時務必
-> 注意兩點：圖表與案例檔內嵌的仍是各 part 原始跑的 F1 值（0.2626 / 0.2207），
-> 圖表已加入 Part 4；Part 3 → Part 4 的改善同時混雜了壓縮器大小、問題感知、
-> 句級過濾與 4-bit 量化，只能視為切塊效應的上界。
+| Report section | Backing artifact |
+| --- | --- |
+| Introduction | [report/review.tex](./report/review.tex) review notes plus the three research questions |
+| Method | [README.md](./README.md), [part1](./part1_uncompressed/README.md), [part2](./part2_truncation/README.md), [part3](./part3_llmlingua/README.md), [part4](./part4_llmlingua_enhanced/README.md) |
+| Results | §7 of this file, the seven-row combined table with 10 paired contrasts, the [accuracy–compression figure](./figures/accuracy_compression_tradeoff.pdf), and the [qualitative cases](./part3_llmlingua/qualitative_cases.md) |
+| Conclusion — difficulties | The gated model, the Windows console encoding crash at sample 87, the compressor context limit forcing chunking, the Colab T4 OOM forcing chunked prefill, and the Windows commit-limit failure that blocked Part 4 locally |
+
+Two things to keep in mind when editing the report: the figure and the case file
+embed the per-part F1 values (0.2626 / 0.2207), not the rerun values, and the
+Part 3 → Part 4 gain mixes compressor size, question awareness, sentence-level
+filtering and 4-bit quantisation, so it is only an upper bound on the chunking
+effect.
+
+> 報告已寫完，本節改為記錄「哪一個章節由哪份檔案支撐」，方便日後追查。編輯時
+> 務必注意兩點：圖表與案例檔內嵌的仍是各 part 原始跑的 F1 值（0.2626 / 0.2207），
+> 以及 Part 3 → Part 4 的改善同時混雜了壓縮器大小、問題感知、句級過濾與 4-bit
+> 量化，只能視為切塊效應的上界。
 
 ## 10. Suggested order of work
 
@@ -301,14 +353,14 @@ so greedy decoding is not bit-exact across GPUs.
 | 2 | ✅ Fill the 6 placeholders in `part2_truncation/README.md` | M2 | Done |
 | 3 | ✅ Accuracy–compression figure from the 5 rows | M3 | Done |
 | 4 | ✅ Reproducible qualitative success / failure examples | M3 | Done |
-| 5 | Answer-position analysis for Part 2, or remove the claim | M2 | ~3 h |
+| 5 | ✅ Answer-position analysis for Part 2 | M2 | Done — [CSV](./report/answer_position_analysis.csv) + three figures |
 | 6 | ✅ RQ3 latency from the single-GPU rerun | All | Done |
 | 7 | ✅ Add Part 4 to the accuracy–compression figure | M4 | Done |
-| 8 | Write the ACL final report | All | ~3 days |
-| 9 | Slides, 5-minute video, source zip, in-class PPT | All | ~2 days |
+| 8 | ✅ Write the ACL final report | All | Done — [`report/final_report.tex`](./report/final_report.tex) |
+| 9 | ⚠️ Slides, 5-minute video, source zip, in-class PPT | All | Deck done in Canva; Part 2 video recorded; Parts 1 and 3 and the code zip remain |
 
-> 建議順序：表格、圖表（含 Part 4）、案例與 RQ3 延遲口徑均已完成，現在只剩
-> Part 2 的位置分析與文件同步，之後即可動筆寫報告。
+> 建議順序：表格、圖表（含 Part 4）、案例、RQ3 延遲口徑與期末報告均已完成。
+> 剩下的是影片後兩段錄製、串接上傳，以及原始碼 zip。
 
 ## 11. RQ coverage
 
