@@ -1,8 +1,11 @@
 # Report numerical review and additional evidence
 
-This branch reviews `report/final.tex` on top of main at 60b95f3. It preserves
-the group's newer video and Q&A additions. The seven historical result rows and
-the existing inline TeX plots remain distinct from the added Alpaca experiment.
+The canonical report is now `report/final_report_revised.tex`, as confirmed by
+the group. Previously verified corrections from `report/final.tex` have been
+integrated into that file, preserving the revised report's structure, existing
+figures and answer-position analysis. The seven historical result rows remain
+distinct from the added Alpaca experiment. The old `final.tex` is retained in
+this review branch for history only; it is not the submission source.
 
 Corrections include prompt-length median 7,023; head-tail 2x latency reduction
 43.5%; maximum historical/rerun F1 discrepancy rounded to 0.0076; baseline
@@ -27,7 +30,7 @@ Verification (from repository root):
 ```bash
 python3 part3_llmlingua/verify_author_full150.py
 python3 'Final Report/cross_check_report.py'
-python3 'Final Report/verify_final_tex.py'
+python3 'Final Report/verify_revised_report.py'
 ```
 
 The first verifier requires only the Python standard library. The report audit
@@ -36,11 +39,24 @@ second/third commands write local audit JSON under `Final Report/`. They do not
 run any models. All 600 added answer scores and actual prompt-budget pairs are
 verified; reported paired intervals use mean difference ± 1.96 SE.
 
-The same report/final.tex bytes compiled successfully with the desktop compiler.
-Existing PDF exports are unchanged; a newly exported PDF still needs visual layout
-review before submission.
-The separate fuzzy answer-position bootstrap analysis is not a numeric table
-in this final.tex and is not claimed independently reproduced here.
+The numeric audit passes 5,227 checks over 2,400 recorded answers. The canonical
+report verifier passes 221 checks, including the seven historical rows, five
+same-environment rows, twelve paired contrasts, actual whole-prompt ratios,
+additional Alpaca results, position-zone means and source references.
+
+`report/final_report_revised.tex` compiled successfully with the desktop compiler
+on 2026-11-13. The project root must be the repository root and the selected main
+file `report/final_report_revised.tex`, so the compiler can access `figures/`.
+Existing PDF exports are unchanged; an exported PDF still needs visual layout
+review before submission. Compilation evidence and the source hash are saved in
+`Final Report/review_revised_20261113/`.
+
+Position-zone counts and means were independently recomputed from the CSV and
+checked against the prediction JSONs. Bootstrap bounds match the committed
+`report/answer_position_stats.tex`, but the generating script, seed and replicate
+count are unavailable. This limitation is disclosed in the report. Comparisons
+with the uncompressed baseline now use exactly the same subset of ids, and no
+causal decomposition of truncation losses is claimed.
 
 The current Part 2 runner is preserved, including the group's answer-position
 logging. Its head_tail_truncate function was checked for AST identity against

@@ -1,0 +1,11 @@
+{
+  "target": "report/final_report_revised.tex",
+  "source_sha256": "d3e5e5bb7be41930eeae30030cd080f478e4918453d6d0dc063cd8ece98b1eb4",
+  "compiler": "Codex desktop compiler",
+  "compile_result": "success",
+  "project_root": "repository root",
+  "main_file": "report/final_report_revised.tex",
+  "pdf_export_updated": false,
+  "pdf_visual_layout_verified": false,
+  "date": "2026-11-13"
+}
