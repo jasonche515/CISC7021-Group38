@@ -1,0 +1,56 @@
+Part 3 Presentation Script - LLMLingua
+Presenter: CHEN IAT HONG | Group 38
+Slides: 10-13
+Language: English
+
+Instructions in square brackets are slide cues and are not spoken.
+
+[SLIDE 10 — overall F1 comparison]
+
+First, the overall trend is that mean F1 decreases as compression increases.
+
+The uncompressed baseline scores about zero point four three.
+
+Truncation retains the most accuracy, followed by the enhanced variant and then our original LLMLingua implementation.
+
+These are average results; individual questions can still improve.
+
+[CHANGE TO SLIDE 11 — paired F1 differences and Exact Match]
+
+Here, we compare LLMLingua directly with truncation.
+
+F1 is about zero point one four lower at both settings.
+
+Both paired confidence intervals lie below zero, supporting higher mean F1 for truncation in this evaluation.
+
+The token budgets are comparable, but not identical.
+
+Exact matches fall from fourteen for the uncompressed baseline to just one or two for LLMLingua, out of one hundred and fifty.
+
+This measures exact agreement, not fluency.
+
+[CHANGE TO SLIDE 12 — illustrative cases]
+
+These examples show both failures and successes.
+
+For the publication date, LLMLingua drops the year or says the date is absent.
+
+For the electorate question, it returns Clutha-Southland instead of Wallace.
+
+However, when evidence appears in the middle of a document, LLMLingua performs better than truncation.
+
+These examples suggest possible information loss, but do not prove its cause.
+
+[CHANGE TO SLIDE 13 — independent compression chunks]
+
+Finally, Phi-2 has a context window of two thousand and forty-eight positions.
+
+We therefore divide long documents into chunks of fourteen hundred measurement tokens and compress them independently.
+
+This affects two hundred and ninety-six of three hundred outputs.
+
+Each chunk receives the same compression rate, and coarse context filtering is disabled.
+
+This is a resource-constrained adaptation, which motivates the whole-document variant discussed next.
+
+[END — pause for one second, then stop recording]
